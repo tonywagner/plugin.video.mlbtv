@@ -228,6 +228,7 @@ def streamSelect(event_id, epg, teams_stream, stream_date):
     content_id = []
     free_game = []
     media_state = []
+    playback_scenario = []
     #archive_type = ['Recap','Extended Highlights','Full Game']    
         
     for item in epg:                
@@ -235,7 +236,16 @@ def streamSelect(event_id, epg, teams_stream, stream_date):
         if str(item['playback_scenario']) == "HTTP_CLOUD_WIRED":
             stream_title.append(str(item['type'])[-4:].title() + " ("+item['display']+")")
             media_state.append(item['state'])             
-            content_id.append(item['id'])
+            content_id.append(item['id'])  
+            playback_scenario.append(str(item['playback_scenario']))       
+
+        elif str(item['playback_scenario']) == "HTTP_CLOUD_AUDIO" and item['state'] != 'MEDIA_OFF':
+            title = str(item['type']).title()
+            title = title.replace('_', ' ')
+            stream_title.append(title + " ("+item['display']+")")
+            media_state.append(item['state'])             
+            content_id.append(item['id'])  
+            playback_scenario.append(str(item['playback_scenario']))          
     
     
     if len(stream_title) == 0:
@@ -275,19 +285,24 @@ def streamSelect(event_id, epg, teams_stream, stream_date):
         '''
         dialog = xbmcgui.Dialog() 
         n = dialog.select('Choose Stream', stream_title)
-        if n > -1:                
-            stream_url, media_auth = fetchStream(content_id[n],event_id)
-            stream_url = createFullGameStream(stream_url,media_auth,media_state[n])           
+        if n > -1:                            
+            stream_url, media_auth = fetchStream(content_id[n],event_id,playback_scenario[n])            
+            stream_url = createFullGameStream(stream_url,media_auth,media_state[n])  
+            
             #stream_url = 'http://mlblive-akc.mlb.com/ls04/mlbam/2016/03/02/MLB_GAME_VIDEO_DETNYA_HOME_20160302/master_wired.m3u8|User-Agent=Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.116 Safari/537.36&Cookie=mediaAuth=a06e2dc0e366b956c91a6e3cab8762e8b94e17a748934f1fac6b2c9046a8f2ef98d878b56f5d2d65b2793114f7ae0bee854ef2b9bfcfea4992fb2a8d79454176a8aa0d7fce453a519164fd743d5e208c80ce73ee1448a971a9904a6bafc9aea610c2a475f0b81a3bcfb3d1edcc02051f633cde560e571385581ec3c078e5e46a6bb21b26bf9271f449b95f2eac4a7144a26217623ebe1c2082a754defcd8209e14363854e3d8174eb88a63d151678167d0c69199f89d6139237e5be6e61b5ca5fce496d1430bfb2e86a9dc876e94de3c39087066c8538bb91f27fdfd5f25030d8f98da313afbe6a7'
+            #http://mlblive-akc.mlb.com/ls04/mlbam/2016/03/07/MLB_GAME_AUDIO_HOUNYA_VISIT_20160307/master_radio.m3u8
     else:
         dialog = xbmcgui.Dialog() 
         n = dialog.select('Choose Stream', stream_title)
-        if n > -1:            
-            stream_url, media_auth = fetchStream(content_id[n],event_id)
+        if n > -1:                        
+            stream_url, media_auth = fetchStream(content_id[n],event_id,playback_scenario[n])            
             stream_url = createFullGameStream(stream_url,media_auth,media_state[n])           
+            
             #stream_url = 'http://mlblive-akc.mlb.com/ls04/mlbam/2016/03/02/MLB_GAME_VIDEO_DETNYA_HOME_20160302/master_wired.m3u8|User-Agent=Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.116 Safari/537.36&Cookie=mediaAuth=a06e2dc0e366b956c91a6e3cab8762e8b94e17a748934f1fac6b2c9046a8f2ef98d878b56f5d2d65b2793114f7ae0bee854ef2b9bfcfea4992fb2a8d79454176a8aa0d7fce453a519164fd743d5e208c80ce73ee1448a971a9904a6bafc9aea610c2a475f0b81a3bcfb3d1edcc02051f633cde560e571385581ec3c078e5e46a6bb21b26bf9271f449b95f2eac4a7144a26217623ebe1c2082a754defcd8209e14363854e3d8174eb88a63d151678167d0c69199f89d6139237e5be6e61b5ca5fce496d1430bfb2e86a9dc876e94de3c39087066c8538bb91f27fdfd5f25030d8f98da313afbe6a7'
        
     
+    print "STREAM BEFORE PLAY"
+    print stream_url
     #example
     #http://mlblive-l3c.mlb.com/ls04/mlbam/2016/03/01/MLB_GAME_VIDEO_TORPHI_HOME_20160301/2400K/2400_complete.m3u8|User-Agent=Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.116 Safari/537.36&Cookie=mediaAuth_v2=e3a8cff5910f220164a55042ac35b339b24eed30da31ce67b69183e8d88b8eea7acea1e1a93d5fdb18f2b9f7fcc12900f03ecb850d6b073b30d8014740e032a7d72576a96bfd2044e4883434cdbf7502f4489215b344cf2299a46b920253e0aaf1f410fdbbb2935959b005ebade07c928ead8e0322ce63ffcc86e0c058be56e48ea7272d4d56840dcd0dff6b287878a0e7d6c51535417be99545184fcbb9562578b0c1585f696a8423e1ecaf186e4d6cf536f14d372c46696c773b522c75acecf051e527623da5c26f696d53974f909568759486a0efc99484cce35493a6e829c2e90df4a2bd4f248ece44388df4667071ae414e99cb50127a1e7add204a8d27d30ffb6f3c0fbf3ee388038bb988d50a2a13effc4500653718e6eb17dd7db425df5f7c54a983ea3b8adee75a9b1daf823f3dc05ffc44f4ff2a7bb0ccf8284ac208ee09b5d14e355689a38b1e9160f4f46e5f305b9ae86063782db56aec8fef1d7394ec36ddc9e53f30659d395b194c66b9ff4d099e8825183fbd0d3aa896c612d77c8c5a593a216772a49fbbb44f2c185a65e3c4fa2ea2bd3031f3cf1185bf51c2a1390d8e0c5aedf25674527da8c06f3b6704246b1c0652de4ef50f85d2fb09681a39f791e74b1e9d490f79328267ed19c79c450c1b88cc5c3ad38894e8f4d50df0f026b4eb770fba6fefa4589451ad30f8b3d2e17312ba140c4021fe3bcbadb7b80cf38dbe45fabf03beb077807f649792f3f2052a11fe1cc7dbb738e9f5a4ef1af31f0fd49c68dd917b3a79a2296547f822cc595f817d4f4a69f4ee2275420ed9274973df19304c1baa2c9a5db19c6a6fa190c8d1fe1b7f70e667a8824ea4c975c318a01cc4e1885cbdf3d4e0288c7450beda7d1f764c8d6a39b7ce1b8f7f0235335b08252bbaeaf3f2c3bdc5736d2ecbe6c3e80e1b405c35b2c68b7968692a8a9ebea81566105872a70bb58e5b18"
     #http://mlblive-akc.mlb.com/ls04/mlbam/2016/03/01/MLB_GAME_VIDEO_CINCLE_HOME_20160301/master_wired.m3u8 
@@ -296,7 +311,7 @@ def streamSelect(event_id, epg, teams_stream, stream_date):
     listitem = xbmcgui.ListItem(path=stream_url)
 
     if stream_url != '':            
-        listitem.setMimeType("application/x-mpegURL")
+        #listitem.setMimeType("application/x-mpegURL")
         xbmcplugin.setResolvedUrl(addon_handle, True, listitem)        
     else:        
         xbmcplugin.setResolvedUrl(addon_handle, False, listitem) 
@@ -357,7 +372,8 @@ def createFullGameStream(stream_url, media_auth, media_state):
     
 
 
-def fetchStream(content_id,event_id):        
+
+def fetchStream(content_id,event_id,playback_scenario):        
     stream_url = ''
     media_auth = ''       
     identity_point_id = ''
@@ -415,18 +431,38 @@ def fetchStream(content_id,event_id):
         return stream_url, media_auth
 
    
-    epoch_time_now = str(int(round(time.time()*1000)))
-    #url = 'https://mf.svc.nhl.com/ws/media/mf/v2.4/stream?contentId='+content_id+'&playbackScenario=HTTP_CLOUD_TABLET_60&platform=IPAD&sessionKey='+urllib.quote_plus(session_key)    
+    #epoch_time_now = str(int(round(time.time()*1000)))
+
+    #-------------------------
+    #Playback Scenario's
+    #-------------------------
+    '''
+    HTTP_CLOUD_WIRED
+    HTTP_CLOUD_WIRED_ADS
+    HTTP_CLOUD_WIRED_IRDETO
+    HTTP_CLOUD_WIRED_WEB
+    FMS_CLOUD
+    HTTP_CLOUD_WIRED_60
+    HTTP_CLOUD_WIRED_ADS_60
+    HTTP_CLOUD_WIRED_IRDETO_60
+    FLASH_500K_400X224
+    HTTP_CLOUD_AUDIO
+    AUDIO_FMS_32K
+    HTTP_CLOUD_AUDIO_TS
+    '''
+    #https://mlb-ws.mlb.com/pubajaxws/bamrest/MediaService2_0/op-findUserVerifiedEvent/v-2.3?identityPointId=31998790&fingerprint=dUVQMTF5bjRrd1N4Rnp0NlVTUk5wR1NMV0E4PXwxNDU3Mzc0NjI0MDU1fGlwdD1lbWFpbC1wYXNzd29yZA==&eventId=14-469489-2016-03-07&platform=WIN8&playbackScenario=HTTP_CLOUD_AUDIO&contentId=546192183&sessionKey=&subject=LIVE_EVENT_COVERAGE
     url = 'https://mlb-ws-mf.media.mlb.com/pubajaxws/bamrest/MediaService2_0/op-findUserVerifiedEvent/v-2.3'
+    #url = 'https://mlb-ws.mlb.com/pubajaxws/bamrest/MediaService2_0/op-findUserVerifiedEvent/v-2.3'
     url = url + '?identityPointId='+identity_point_id
     url = url + '&fingerprint='+fingerprint
-    url = url + '&contentId='+content_id
-    url = url + '&playbackScenario=HTTP_CLOUD_WIRED'
+    url = url + '&contentId='+content_id    
+    url = url + '&eventId='+event_id
+    url = url + '&playbackScenario='+playback_scenario    
     url = url + '&subject=LIVE_EVENT_COVERAGE'
     url = url + '&sessionKey='+urllib.quote_plus(session_key)
-    url = url + '&platform=WEB_MEDIAPLAYER_5'
-    url = url + '&frameworkURL=https%3A%2F%2Fmlb-ws-mf.media.mlb.com&frameworkEndPoint=%2Fpubajaxws%2Fbamrest%2FMediaService2_0%2Fop-findUserVerifiedEvent%2Fv-2.3'
-    url = url + '&_='+epoch_time_now
+    url = url + '&platform=WIN8'
+    #url = url + '&frameworkURL=https%3A%2F%2Fmlb-ws-mf.media.mlb.com&frameworkEndPoint=%2Fpubajaxws%2Fbamrest%2FMediaService2_0%2Fop-findUserVerifiedEvent%2Fv-2.3'
+    #url = url + '&_='+epoch_time_now
     req = urllib2.Request(url)       
     req.add_header("Accept", "*/*")
     req.add_header("Accept-Encoding", "deflate")
@@ -438,15 +474,27 @@ def fetchStream(content_id,event_id):
     xml_data = response.read()
     response.close()
     
-    stream_url = find(xml_data,'<url><![CDATA[',']]></url>')    
+    stream_url = find(xml_data,'<url><![CDATA[',']]></url>')   
+
+    print "STREAM FROM XML" 
+    print stream_url
     
-    media_auth_type = find(xml_data,'<session-attribute name="','"')    
-    media_auth = media_auth_type + '=' + find(xml_data,'<session-attribute name="'+media_auth_type+'" value="','"/>')
-    settings.setSetting(id='media_auth', value=media_auth) 
+    #media_auth_type = find(xml_data,'<session-attribute name="','"')    
+    #media_auth = media_auth_type + '=' + find(xml_data,'<session-attribute name="'+media_auth_type+'" value="','"/>')
+    #if media_auth == '':
+    for cookie in cj:         
+        if cookie.name == "mediaAuth":
+            media_auth = "mediaAuth="+cookie.value
+            settings.setSetting(id='media_auth', value=media_auth)
+    #else:            
+    #settings.setSetting(id='media_auth', value=media_auth) 
 
     #Update Session Key
     session_key = find(xml_data,'<session-key>','</session-key>')
-    settings.setSetting(id='session_key', value=session_key)
+    if session_key != '':
+        settings.setSetting(id='session_key', value=session_key)
+
+    cj.save(ignore_discard=True); 
 
     '''
     if json_source['status_code'] == 1:
@@ -488,7 +536,7 @@ def getSessionKey(content_id,event_id,identity_point_id,fingerprint):
         url = url + '&fingerprint='+fingerprint
         url = url + '&eventId='+event_id
         url = url + '&subject=LIVE_EVENT_COVERAGE'
-        url = url + '&platform=WEB_MEDIAPLAYER_5'
+        url = url + '&platform=WIN8'
         url = url + '&frameworkURL=https://mlb-ws-mf.media.mlb.com&frameworkEndPoint=/pubajaxws/bamrest/MediaService2_0/op-findUserVerifiedEvent/v-2.3'
         url = url + '&_='+epoch_time_now
 

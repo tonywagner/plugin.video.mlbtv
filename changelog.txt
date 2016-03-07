@@ -1,2 +1,5 @@
+2016.3.7
+- Added live audio support
+
 2016.3.4
 - Beta released
