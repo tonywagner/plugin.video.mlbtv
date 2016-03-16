@@ -4,7 +4,7 @@
   <category label="100">    
     <setting id="username" type="text" label="140" default=""/>
     <setting id="password" type="text" label="150" option="hidden" default=""/>	        
-    
+    <setting label="156" type="action" action="RunPlugin(plugin://plugin.video.mlbtv/?url=junk&mode=400)" option="close" />
     <!-- <setting label="156" type="action" action="RunScript(special://home/addons/plugin.video.nhlgcl/resources/lib/logout.py)" option="close" /> -->
   </category>
   <category label="159">

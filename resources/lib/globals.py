@@ -66,17 +66,18 @@ PREV_ICON = ROOTDIR+"/icon.png"
 NEXT_ICON = ROOTDIR+"/icon.png"
 
 MASTER_FILE_TYPE = 'master_wired.m3u8'
+#master_tablet_60.m3u8
 
 #User Agents
 UA_IPHONE = 'AppleCoreMedia/1.0.0.13D15 (iPhone; U; CPU OS 9_2_1 like Mac OS X; en_us)'
-UA_IPAD = 'Mozilla/5.0 (iPad; CPU OS 8_4 like Mac OS X) AppleWebKit/600.1.4 (KHTML, like Gecko) Mobile/12H143 ipad nhl 5.0925'
+UA_IPAD = 'AppleCoreMedia/1.0 ( iPad; compatible; 3ivx HLS Engine/2.0.0.382; Win8; x64; 264P AACP AC3P AESD CLCP HTPC HTPI HTSI MP3P MTKA)'
 UA_PC = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.97 Safari/537.36'         
 UA_PS4 = 'PS4Application libhttp/1.000 (PS4) libhttp/3.15 (PlayStation 4)'
 UA_ATBAT = 'At Bat/13268 CFNetwork/758.2.8 Darwin/15.0.0'
 
 #Playlists
-RECAP_PLAYLIST = xbmc.PlayList(0)
-EXTENDED_PLAYLIST = xbmc.PlayList(1)
+HIGHLIGHT_PLAYLIST = xbmc.PlayList(0)
+
 
 
 def find(source,start_str,end_str):    
@@ -321,6 +322,8 @@ def addPlaylist(name,game_day,url,mode,iconimage,fanart=None):
 
 
 def scoreUpdates():
+    #http://gdx.mlb.com/components/game/mlb/year_2016/month_03/day_08/miniscoreboard.json
+    #grid.poll=15
     #s = ScoreThread()
     t = threading.Thread(target = scoringUpdates)
     t.start() 
@@ -453,3 +456,35 @@ def setViewMode():
     
 def getViewMode():
     xbmc.executebuiltin("Container.SetViewMode("+VIEW_MODE+")")
+
+
+def convertSubtitles(suburl):
+    #suburl = subtitles url
+    #xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, xbmcgui.ListItem(path = url))
+
+    #if ((addon.getSetting('sub_enable') == "true"):    
+    subfile = xbmc.translatePath(os.path.join(ADDON_PATH_PROFILE, 'game_subtitles.srt'))
+    prodir  = xbmc.translatePath(os.path.join(ADDON_PATH_PROFILE))
+    if not os.path.isdir(prodir):
+        os.makedirs(prodir)
+
+    #pg = getRequest(suburl)
+    response = urllib.urlopen(suburl)
+    pg = response.read()    
+    response.close()    
+    if pg != "":
+        ofile = open(subfile, 'w+')
+        #need to adjust for subtitles not starting until 18 hours into the stream
+        #<p begin='18:00:08;29' end='18:00:35;23'>&gt;&gt;&gt;</p>
+        captions = re.compile("<p begin='(.+?)' end='(.+?)'>(.+?)</p>").findall(pg)
+        idx = 1
+        for cstart, cend, caption in captions:
+            print idx
+            cstart = cstart.replace('.',',')
+            cend   = cend.replace('.',',').split('"',1)[0]
+            caption = caption.replace('<br/>','\n').replace('&gt;','>')
+            ofile.write( '%s\n%s --> %s\n%s\n\n' % (idx, cstart, cend, caption))
+            idx += 1
+        ofile.close()
+
+    return subfile

@@ -42,10 +42,7 @@ def todaysGames(game_day):
         print 'Error code: ', e.code          
         sys.exit()
 
-    global RECAP_PLAYLIST
-    global EXTENDED_PLAYLIST
-    RECAP_PLAYLIST.clear()
-    EXTENDED_PLAYLIST.clear()
+       
     #try:
     for game in json_source['data']['games']['game']:        
         createGameListItem(game, game_day)
@@ -59,7 +56,10 @@ def todaysGames(game_day):
 def createGameListItem(game, game_day):
     icon = getGameIcon(game['home_team_id'],game['away_team_id'])
     #http://mlb.mlb.com/mlb/images/devices/ballpark/1920x1080/2681.jpg
-    fanart = 'http://mlb.mlb.com/mlb/images/devices/ballpark/1920x1080/'+game['venue_id']+'.jpg'   
+    #B&W
+    #fanart = 'http://mlb.mlb.com/mlb/images/devices/ballpark/1920x1080/'+game['venue_id']+'.jpg'   
+    #Color
+    fanart = 'http://www.mlb.com/mlb/images/devices/ballpark/1920x1080/color/'+game['venue_id']+'.jpg'
     
     if TEAM_NAMES == "0":
         away_team = game['away_team_name']
@@ -111,11 +111,11 @@ def createGameListItem(game, game_day):
                 top_bottom = "B"                
 
             inning = game['inning']
-            if int(inning) == 1:
+            if int(inning) % 10 == 1 and int(inning) != 11:
                 ordinal_indicator = "st"
-            elif int(inning) == 2:
+            elif int(inning) % 10 == 2 and int(inning) != 12:
                 ordinal_indicator = "nd"
-            elif int(inning) == 3:
+            elif int(inning) % 10 == 3 and int(inning) != 13:
                 ordinal_indicator = "rd"
             else:
                 ordinal_indicator = "th"
@@ -144,7 +144,8 @@ def createGameListItem(game, game_day):
         pass
     live_feeds = 0
     archive_feeds = 0
-    teams_stream = game['away_name_abbrev'] + game['home_name_abbrev']
+    #teams_stream = game['away_name_abbrev'] + game['home_name_abbrev']
+    teams_stream = game['away_code'] + game['home_code']
     stream_date = str(game_day)
 
     
@@ -223,15 +224,24 @@ def createGameListItem(game, game_day):
 
 
 def streamSelect(event_id, epg, teams_stream, stream_date):    
-    epg = json.loads(epg)    
+    try:
+        epg = json.loads(epg)    
+    except:
+        #no stream info, abort! abort!
+        msg = "No playable streams found."
+        dialog = xbmcgui.Dialog() 
+        ok = dialog.ok('Streams Not Found', msg)        
+        sys.exit()
+
     stream_title = []    
     content_id = []
     free_game = []
     media_state = []
     playback_scenario = []
-    #archive_type = ['Recap','Extended Highlights','Full Game']    
+    archive_type = ['Highlights','Full Game']    
         
     for item in epg:                
+        #if str(item['playback_scenario']) == "HTTP_CLOUD_TABLET_60":
         #if str(item['playback_scenario']) == "HTTP_CLOUD_WIRED_60":                        
         if str(item['playback_scenario']) == "HTTP_CLOUD_WIRED":
             stream_title.append(str(item['type'])[-4:].title() + " ("+item['display']+")")
@@ -247,8 +257,8 @@ def streamSelect(event_id, epg, teams_stream, stream_date):
             content_id.append(item['id'])  
             playback_scenario.append(str(item['playback_scenario']))          
     
-    
-    if len(stream_title) == 0:
+    #All past games should have highlights
+    if len(stream_title) == 0 and stream_date > localToEastern():
         msg = "No playable streams found."
         dialog = xbmcgui.Dialog() 
         ok = dialog.ok('Streams Not Found', msg)        
@@ -263,42 +273,42 @@ def streamSelect(event_id, epg, teams_stream, stream_date):
     stream_url = ''
     media_auth = ''
     
-
-    if media_state[0] == 'MEDIA_ARCHIVE':
-        '''
-        dialog = xbmcgui.Dialog()         
-        a = dialog.select('Choose Archive', archive_type)
-        if a < 2:
+    play_highlights = 0
+    if len(media_state) > 0:
+        if media_state[0] == 'MEDIA_ARCHIVE':        
+            dialog = xbmcgui.Dialog()         
+            a = dialog.select('Choose Archive', archive_type)                
             if a == 0:
-                #Recap                 
-                try:            
-                    stream_url = createHighlightStream(recap_items[0]['playbacks'][3]['url'])                
-                except:
-                    pass
-            elif a == 1:
-                #Extended Highlights                
-                try:
-                    stream_url = createHighlightStream(highlight_items[0]['playbacks'][3]['url'])
-                except:
-                    pass
-        elif a == 2:
-        '''
-        dialog = xbmcgui.Dialog() 
-        n = dialog.select('Choose Stream', stream_title)
-        if n > -1:                            
-            stream_url, media_auth = fetchStream(content_id[n],event_id,playback_scenario[n])            
-            stream_url = createFullGameStream(stream_url,media_auth,media_state[n])  
-            
-            #stream_url = 'http://mlblive-akc.mlb.com/ls04/mlbam/2016/03/02/MLB_GAME_VIDEO_DETNYA_HOME_20160302/master_wired.m3u8|User-Agent=Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.116 Safari/537.36&Cookie=mediaAuth=a06e2dc0e366b956c91a6e3cab8762e8b94e17a748934f1fac6b2c9046a8f2ef98d878b56f5d2d65b2793114f7ae0bee854ef2b9bfcfea4992fb2a8d79454176a8aa0d7fce453a519164fd743d5e208c80ce73ee1448a971a9904a6bafc9aea610c2a475f0b81a3bcfb3d1edcc02051f633cde560e571385581ec3c078e5e46a6bb21b26bf9271f449b95f2eac4a7144a26217623ebe1c2082a754defcd8209e14363854e3d8174eb88a63d151678167d0c69199f89d6139237e5be6e61b5ca5fce496d1430bfb2e86a9dc876e94de3c39087066c8538bb91f27fdfd5f25030d8f98da313afbe6a7'
-            #http://mlblive-akc.mlb.com/ls04/mlbam/2016/03/07/MLB_GAME_AUDIO_HOUNYA_VISIT_20160307/master_radio.m3u8
+                #Highlighs                
+                #try:            
+                #stream_url = createHighlightStream(teams_stream, stream_date)                
+                createHighlightStream(teams_stream, stream_date)                
+                play_highlights = 1
+                #except:
+                #pass            
+            elif a == 1:        
+                dialog = xbmcgui.Dialog() 
+                n = dialog.select('Choose Stream', stream_title)
+                if n > -1:                            
+                    stream_url, media_auth = fetchStream(content_id[n],event_id,playback_scenario[n])            
+                    stream_url = createFullGameStream(stream_url,media_auth,media_state[n])  
+                
+                #stream_url = 'http://mlblive-akc.mlb.com/ls04/mlbam/2016/03/02/MLB_GAME_VIDEO_DETNYA_HOME_20160302/master_wired.m3u8|User-Agent=Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.116 Safari/537.36&Cookie=mediaAuth=a06e2dc0e366b956c91a6e3cab8762e8b94e17a748934f1fac6b2c9046a8f2ef98d878b56f5d2d65b2793114f7ae0bee854ef2b9bfcfea4992fb2a8d79454176a8aa0d7fce453a519164fd743d5e208c80ce73ee1448a971a9904a6bafc9aea610c2a475f0b81a3bcfb3d1edcc02051f633cde560e571385581ec3c078e5e46a6bb21b26bf9271f449b95f2eac4a7144a26217623ebe1c2082a754defcd8209e14363854e3d8174eb88a63d151678167d0c69199f89d6139237e5be6e61b5ca5fce496d1430bfb2e86a9dc876e94de3c39087066c8538bb91f27fdfd5f25030d8f98da313afbe6a7'
+                #http://mlblive-akc.mlb.com/ls04/mlbam/2016/03/07/MLB_GAME_AUDIO_HOUNYA_VISIT_20160307/master_radio.m3u8
+        else:
+            dialog = xbmcgui.Dialog() 
+            n = dialog.select('Choose Stream', stream_title)
+            if n > -1:                        
+                stream_url, media_auth = fetchStream(content_id[n],event_id,playback_scenario[n])            
+                stream_url = createFullGameStream(stream_url,media_auth,media_state[n])           
     else:
-        dialog = xbmcgui.Dialog() 
-        n = dialog.select('Choose Stream', stream_title)
-        if n > -1:                        
-            stream_url, media_auth = fetchStream(content_id[n],event_id,playback_scenario[n])            
-            stream_url = createFullGameStream(stream_url,media_auth,media_state[n])           
-            
-            #stream_url = 'http://mlblive-akc.mlb.com/ls04/mlbam/2016/03/02/MLB_GAME_VIDEO_DETNYA_HOME_20160302/master_wired.m3u8|User-Agent=Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.116 Safari/537.36&Cookie=mediaAuth=a06e2dc0e366b956c91a6e3cab8762e8b94e17a748934f1fac6b2c9046a8f2ef98d878b56f5d2d65b2793114f7ae0bee854ef2b9bfcfea4992fb2a8d79454176a8aa0d7fce453a519164fd743d5e208c80ce73ee1448a971a9904a6bafc9aea610c2a475f0b81a3bcfb3d1edcc02051f633cde560e571385581ec3c078e5e46a6bb21b26bf9271f449b95f2eac4a7144a26217623ebe1c2082a754defcd8209e14363854e3d8174eb88a63d151678167d0c69199f89d6139237e5be6e61b5ca5fce496d1430bfb2e86a9dc876e94de3c39087066c8538bb91f27fdfd5f25030d8f98da313afbe6a7'
+        archive_type = ['Highlights']
+        dialog = xbmcgui.Dialog()         
+        a = dialog.select('Choose Archive', archive_type)                
+        if a == 0:
+            createHighlightStream(teams_stream, stream_date)                
+            play_highlights = 1
+                         
        
     
     print "STREAM BEFORE PLAY"
@@ -308,13 +318,33 @@ def streamSelect(event_id, epg, teams_stream, stream_date):
     #http://mlblive-akc.mlb.com/ls04/mlbam/2016/03/01/MLB_GAME_VIDEO_CINCLE_HOME_20160301/master_wired.m3u8 
     #http://mlblive-l3c.mlb.com/ls04/mlbam/2016/03/01/MLB_GAME_VIDEO_TORPHI_HOME_20160301/2400K/2400_complete.m3u8|User-Agent=Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.116 Safari/537.36&Cookie=mediaAuth_v2=e3a8cff5910f220164a55042ac35b339b24eed30da31ce67b69183e8d88b8eea7acea1e1a93d5fdb18f2b9f7fcc12900f03ecb850d6b073b30d8014740e032a7d72576a96bfd2044e4883434cdbf7502f4489215b344cf2299a46b920253e0aaf1f410fdbbb2935959b005ebade07c928ead8e0322ce63ffcc86e0c058be56e48ea7272d4d56840dcd0dff6b287878a0e7d6c51535417be99545184fcbb9562578b0c1585f696a8423e1ecaf186e4d6cf536f14d372c46696c773b522c75acecf051e527623da5c26f696d53974f909568759486a0efc99484cce35493a6e829c2e90df4a2bd4f248ece44388df4667071ae414e99cb50127a1e7add204a8d27d30ffb6f3c0fbf3ee388038bb988d50a2a13effc4500653718e6eb17dd7db425df5f7c54a983ea3b8adee75a9b1daf823f3dc05ffc44f4ff2a7bb0ccf8284ac208ee09b5d14e355689a38b1e9160f4f46e5f305b9ae86063782db56aec8fef1d7394ec36ddc9e53f30659d395b194c66b9ff4d099e8825183fbd0d3aa896c612d77c8c5a593a216772a49fbbb44f2c185a65e3c4fa2ea2bd3031f3cf1185bf51c2a1390d8e0c5aedf25674527da8c06f3b6704246b1c0652de4ef50f85d2fb09681a39f791e74b1e9d490f79328267ed19c79c450c1b88cc5c3ad38894e8f4d50df0f026b4eb770fba6fefa4589451ad30f8b3d2e17312ba140c4021fe3bcbadb7b80cf38dbe45fabf03beb077807f649792f3f2052a11fe1cc7dbb738e9f5a4ef1af31f0fd49c68dd917b3a79a2296547f822cc595f817d4f4a69f4ee2275420ed9274973df19304c1baa2c9a5db19c6a6fa190c8d1fe1b7f70e667a8824ea4c975c318a01cc4e1885cbdf3d4e0288c7450beda7d1f764c8d6a39b7ce1b8f7f0235335b08252bbaeaf3f2c3bdc5736d2ecbe6c3e80e1b405c35b2c68b7968692a8a9ebea81566105872a70bb58e5b18"
     #http://mlblive-akc.mlb.com/ls04/mlbam/2016/03/02/MLB_GAME_VIDEO_DETNYA_HOME_20160302/master_wired.m3u8|User-Agent=Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.116 Safari/537.36&Cookie=mediaAuth=a06e2dc0e366b956c91a6e3cab8762e8b94e17a748934f1fac6b2c9046a8f2ef98d878b56f5d2d65b2793114f7ae0bee854ef2b9bfcfea4992fb2a8d79454176a8aa0d7fce453a519164fd743d5e208c80ce73ee1448a971a9904a6bafc9aea610c2a475f0b81a3bcfb3d1edcc02051f633cde560e571385581ec3c078e5e46a6bb21b26bf9271f449b95f2eac4a7144a26217623ebe1c2082a754defcd8209e14363854e3d8174eb88a63d151678167d0c69199f89d6139237e5be6e61b5ca5fce496d1430bfb2e86a9dc876e94de3c39087066c8538bb91f27fdfd5f25030d8f98da313afbe6a7
-    listitem = xbmcgui.ListItem(path=stream_url)
+    listitem = xbmcgui.ListItem(path=stream_url)    
+    #subtitles_file = ADDON_PATH_PROFILE+"game_subtitles.srt"    
+    #print subtitles_file
+    #listitem.setSubtitles([subtitles_file])
 
     if stream_url != '':            
-        #listitem.setMimeType("application/x-mpegURL")
-        xbmcplugin.setResolvedUrl(addon_handle, True, listitem)        
+        #listitem.setMimeType("application/x-mpegURL")        
+        xbmcplugin.setResolvedUrl(handle=addon_handle, succeeded=True, listitem=listitem)
+        
+    elif play_highlights == 1:             
+        #-----------------------------------------------------------
+        #Hack to get around resolved url wanting a single list item
+        #-----------------------------------------------------------
+        #Satisify the resolved url call
+        listitem = xbmcgui.ListItem()    
+        xbmcplugin.setResolvedUrl(handle=addon_handle, succeeded=False, listitem=listitem)
+        xbmc.sleep(5)
+        #Close the error dialog
+        xbmc.executebuiltin('Dialog.Close(all,true)')
+        xbmc.sleep(500)
+        #-------------------------------------------------- 
+        #Play highlights        
+        xbmc.Player().play(HIGHLIGHT_PLAYLIST)         
+               
     else:        
-        xbmcplugin.setResolvedUrl(addon_handle, False, listitem) 
+        #xbmcplugin.setResolvedUrl(addon_handle, False, listitem)
+        xbmc.executebuiltin('Dialog.Close(all,true)')
 
 
 
@@ -329,18 +359,57 @@ def playAllHighlights():
         xbmc.Player().play(EXTENDED_PLAYLIST)
 
 
-def createHighlightStream(stream_url):
+def createHighlightStream(teams_stream, stream_date):
+    global HIGHLIGHT_PLAYLIST
+    HIGHLIGHT_PLAYLIST.clear()  
+    # http://gdx.mlb.com/components/game/mlb/year_2016/month_03/day_13/gid_2016_03_13_detmlb_pitmlb_1/media/mobile.xml 
+    # http://gdx.mlb.com/components/game/mlb/year_2016/month_03/day_13/gid_2016_03_13_atlmlb_houmlb_1/media/mobile.xml 
+    # http://gdx.mlb.com/components/game/mlb/year_2016/month_03/day_13/gid_2016_03_13_balmlb_minmlb_1/media/mobile.xml 
+    # http://mlb.mlb.com/ws/search/MediaSearchService?bypass=y&type=json&sort=desc&sort_type=date&platform=PS4&subject=MLBCOM_TOP_PLAY&op=AND&team_id=134
+
+    #http://gdx.mlb.com/components/game/mlb/year_2016/month_03/day_13/gid_2016_03_13_nynmlb_miamlb_1/media/mobile.xml
+    #http://gdx.mlb.com/components/game/mlb/year_2016/month_03/day_13/gid_2016_03_13_nymmlb_miamlb_1/media/mobile.xml
+    print teams_stream
+    print stream_date
+    stream_date = stringToDate(stream_date, "%Y-%m-%d")                
+    year = stream_date.strftime("%Y")
+    month = stream_date.strftime("%m")
+    day = stream_date.strftime("%d")
+    away = teams_stream[:3].lower()
+    home = teams_stream[3:].lower()
+
+    url = 'http://gdx.mlb.com/components/game/mlb/year_'+year+'/month_'+month+'/day_'+day+'/gid_'+year+'_'+month+'_'+day+'_'+away+'mlb_'+home+'mlb_1/media/mobile.xml'
+    print url
+
+    req = urllib2.Request(url)    
+    req.add_header('Connection', 'close')
+    req.add_header('User-Agent', UA_IPAD)
+    try:    
+        response = urllib2.urlopen(req)            
+        xml_data = response.read()                                 
+        response.close()                
+    except HTTPError as e:
+        print 'The server couldn\'t fulfill the request.'
+        print 'Error code: ', e.code          
+        sys.exit()
+    
+    match = re.compile('<media id="(.+?)"(.+?)<headline>(.+?)</headline>(.+?)<url playback-scenario="HTTP_CLOUD_TABLET_60">(.+?)</url>',re.DOTALL).findall(xml_data)   
     bandwidth = ''
     bandwidth = find(QUALITY,'(',' kbps)') 
-    #Switch to ipad master file
-    stream_url = stream_url.replace('master_wired.m3u8', MASTER_FILE_TYPE)
 
-    if bandwidth != '':
-        stream_url = stream_url.replace(MASTER_FILE_TYPE, 'asset_'+bandwidth+'k.m3u8')
-        stream_url = stream_url + '|User-Agent='+UA_IPAD
+    for media_id, junk, headline, junk2, clip_url in match:        
+        print clip_url
+        if bandwidth != '' and int(bandwidth) < 4500:
+            clip_url = clip_url.replace('master_tablet_60.m3u8', 'asset_'+bandwidth+'K.m3u8')
+        
+        clip_url = clip_url + '|User-Agent='+UA_IPAD
+        print clip_url
+        icon = 'http://mediadownloads.mlb.com/mlbam/'+year+'/'+month+'/'+day+'/images/mlbf_'+media_id+'_th_43.jpg'
+        listitem = xbmcgui.ListItem(headline, thumbnailImage=icon)    
+        listitem.setInfo( type="Video", infoLabels={ "Title": headline })
+        #RECAP_PLAYLIST.add(temp_recap_stream_url, listitem)
+        HIGHLIGHT_PLAYLIST.add(clip_url, listitem)
 
-    print stream_url
-    return stream_url
 
 
 def createFullGameStream(stream_url, media_auth, media_state):
@@ -386,7 +455,9 @@ def fetchStream(content_id,event_id,playback_scenario):
 
         #Check if cookies have expired
         at_least_one_expired = False
+        num_cookies = 0
         for cookie in cj:                        
+            num_cookies += 1
             print cookie.name
             print cookie.expires
             print cookie.is_expired()
@@ -399,7 +470,7 @@ def fetchStream(content_id,event_id,playback_scenario):
     except:
         pass
 
-    if expired_cookies:
+    if expired_cookies or num_cookies == 0:
         login()
 
 
@@ -441,6 +512,7 @@ def fetchStream(content_id,event_id,playback_scenario):
     HTTP_CLOUD_WIRED_ADS
     HTTP_CLOUD_WIRED_IRDETO
     HTTP_CLOUD_WIRED_WEB
+    HTTP_CLOUD_TABLET
     FMS_CLOUD
     HTTP_CLOUD_WIRED_60
     HTTP_CLOUD_WIRED_ADS_60
@@ -449,7 +521,13 @@ def fetchStream(content_id,event_id,playback_scenario):
     HTTP_CLOUD_AUDIO
     AUDIO_FMS_32K
     HTTP_CLOUD_AUDIO_TS
+
+    PS4 Calls
+    "MF": "https://mlb-ws-mf.media.mlb.com/pubajaxws/bamrest/MediaService2_0/op-findUserVerifiedEvent/v-2.3?",
+    "mfPlay": "playbackScenario={playbackScenario}&platform={platform}&contentId={contentID}&identityPointId={identityPointID}&fingerprint={fingerprint}&format=json&auth=cookie",
+    "mfCatalog": "platform={platform}&subject=LIVE_EVENT_COVERAGE&format=json&eventId={eventId}&fingerprint={fingerprint}&identityPointId={identityPointId}&auth=cookie",
     '''
+
     #https://mlb-ws.mlb.com/pubajaxws/bamrest/MediaService2_0/op-findUserVerifiedEvent/v-2.3?identityPointId=31998790&fingerprint=dUVQMTF5bjRrd1N4Rnp0NlVTUk5wR1NMV0E4PXwxNDU3Mzc0NjI0MDU1fGlwdD1lbWFpbC1wYXNzd29yZA==&eventId=14-469489-2016-03-07&platform=WIN8&playbackScenario=HTTP_CLOUD_AUDIO&contentId=546192183&sessionKey=&subject=LIVE_EVENT_COVERAGE
     url = 'https://mlb-ws-mf.media.mlb.com/pubajaxws/bamrest/MediaService2_0/op-findUserVerifiedEvent/v-2.3'
     #url = 'https://mlb-ws.mlb.com/pubajaxws/bamrest/MediaService2_0/op-findUserVerifiedEvent/v-2.3'
@@ -457,10 +535,11 @@ def fetchStream(content_id,event_id,playback_scenario):
     url = url + '&fingerprint='+fingerprint
     url = url + '&contentId='+content_id    
     url = url + '&eventId='+event_id
-    url = url + '&playbackScenario='+playback_scenario    
+    url = url + '&playbackScenario='+playback_scenario        
     url = url + '&subject=LIVE_EVENT_COVERAGE'
     url = url + '&sessionKey='+urllib.quote_plus(session_key)
-    url = url + '&platform=WIN8'
+    url = url + '&platform=PS4'
+    url = url + '&format=json'
     #url = url + '&frameworkURL=https%3A%2F%2Fmlb-ws-mf.media.mlb.com&frameworkEndPoint=%2Fpubajaxws%2Fbamrest%2FMediaService2_0%2Fop-findUserVerifiedEvent%2Fv-2.3'
     #url = url + '&_='+epoch_time_now
     req = urllib2.Request(url)       
@@ -468,52 +547,44 @@ def fetchStream(content_id,event_id,playback_scenario):
     req.add_header("Accept-Encoding", "deflate")
     req.add_header("Accept-Language", "en-US,en;q=0.8")                       
     req.add_header("Connection", "keep-alive")    
-    req.add_header("User-Agent", UA_PC)
+    req.add_header("User-Agent", UA_PS4)
 
     response = opener.open(req)
-    xml_data = response.read()
+    #xml_data = response.read()    
+    json_source = json.load(response)                                   
     response.close()
     
-    stream_url = find(xml_data,'<url><![CDATA[',']]></url>')   
+    #stream_url = find(xml_data,'<url><![CDATA[',']]></url>')       
 
-    print "STREAM FROM XML" 
-    print stream_url
-    
-    #media_auth_type = find(xml_data,'<session-attribute name="','"')    
-    #media_auth = media_auth_type + '=' + find(xml_data,'<session-attribute name="'+media_auth_type+'" value="','"/>')
-    #if media_auth == '':
-    for cookie in cj:         
-        if cookie.name == "mediaAuth":
-            media_auth = "mediaAuth="+cookie.value
-            settings.setSetting(id='media_auth', value=media_auth)
-    #else:            
-    #settings.setSetting(id='media_auth', value=media_auth) 
-
-    #Update Session Key
-    session_key = find(xml_data,'<session-key>','</session-key>')
-    if session_key != '':
-        settings.setSetting(id='session_key', value=session_key)
-
-    cj.save(ignore_discard=True); 
-
-    '''
     if json_source['status_code'] == 1:
-        if json_source['user_verified_event'][0]['user_verified_content'][0]['user_verified_media_item'][0]['blackout_status']['status'] == 'BlackedOutStatus':
-            msg = "You do not have access to view this content. To watch live games and learn more about blackout restrictions, please visit NHL.TV"
+        if json_source['user_verified_event'][0]['user_verified_content'][0]['user_verified_media_item'][0]['blackout_status'] == 'BlackedOutStatus':
+            msg = "We're sorry.  We have determined that you are blacked out of watching the game you selected due to Major League Baseball exclusivities."
             dialog = xbmcgui.Dialog() 
             ok = dialog.ok('Game Blacked Out', msg) 
         else:
-            stream_url = json_source['user_verified_event'][0]['user_verified_content'][0]['user_verified_media_item'][0]['url']    
-            media_auth = str(json_source['session_info']['sessionAttributes'][0]['attributeName']) + "=" + str(json_source['session_info']['sessionAttributes'][0]['attributeValue'])
-            session_key = json_source['session_key']
-            settings.setSetting(id='media_auth', value=media_auth) 
+            stream_url = json_source['user_verified_event'][0]['user_verified_content'][0]['user_verified_media_item'][0]['url']                
+            #Find subtitles
+            '''
+            for item in json_source['user_verified_event'][0]['user_verified_content'][0]['domain_specific_attributes']:
+                if item['name'] == 'closed_captions_location_ttml':
+                    subtitles_url = item['value']
+                    convertSubtitles(subtitles_url)
+            '''
+            session_key = json_source['session_key']            
             #Update Session Key
             settings.setSetting(id='session_key', value=session_key)   
     else:
         msg = json_source['status_message']
         dialog = xbmcgui.Dialog() 
-        ok = dialog.ok('Error Fetching Stream', msg)       
-    '''
+        ok = dialog.ok('Error Fetching Stream', msg)     
+        
+    
+    for cookie in cj:         
+        if cookie.name == "mediaAuth":
+            media_auth = "mediaAuth="+cookie.value
+            settings.setSetting(id='media_auth', value=media_auth)
+    
+    cj.save(ignore_discard=True)
 
     return stream_url, media_auth    
    
@@ -663,6 +734,20 @@ def login():
 
         cj.save(ignore_discard=True); 
 
+def logout():
+    cj = cookielib.LWPCookieJar(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'))   
+    try:  
+        cj.load(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'),ignore_discard=True)
+    except:
+        pass
+    
+    cj.clear()
+    cj.save(ignore_discard=True);   
+
+    settings.setSetting(id='session_key', value='') 
+    dialog = xbmcgui.Dialog() 
+    title = "Logout Successful" 
+    dialog.notification(title, 'Logout completed successfully', ICON, 5000, False)
 
     
 params=get_params()
@@ -757,7 +842,7 @@ elif mode == 300:
     nhlVideos()
 
 elif mode == 400:    
-    logout('true')
+    logout()
 
 elif mode == 500:
     myTeamsGames()

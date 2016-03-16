@@ -4,6 +4,7 @@
 	<string id="100">Login</string>
 	<string id="140">Username</string>
 	<string id="150">Password</string>
+	<string id="156">Logout</string>
 	<!-- Visual Settings -->
 	<string id="159">Visual</string>		
 	<string id="160">Stream Quality</string>
