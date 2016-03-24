@@ -488,3 +488,43 @@ def convertSubtitles(suburl):
         ofile.close()
 
     return subfile
+
+
+def getStreamQuality(stream_url):    
+    stream_title = []     
+    print "Getting Stream Quality for " + stream_url
+    req = urllib2.Request(stream_url)
+    response = urllib2.urlopen(req)                    
+    master = response.read()
+    response.close()
+            
+    print master        
+
+    line = re.compile("(.+?)\n").findall(master)  
+
+    for temp_url in line:
+        if '.m3u8' in temp_url:
+            temp_url = temp_url
+            match = re.search(r'(\d.+?)K', temp_url)
+            if match:
+                bandwidth = match.group()
+                if 0 < len(bandwidth) < 6:
+                    bandwidth = bandwidth.replace('K',' kbps')
+                    print bandwidth
+                    stream_title.append(bandwidth)                           
+    
+
+    stream_title.sort(key=natural_sort_key) 
+    dialog = xbmcgui.Dialog() 
+    ret = dialog.select('Choose Stream Quality', stream_title)    
+    if ret >=0:        
+        bandwidth = find(stream_title[ret],'',' kbps')
+    else:
+        sys.exit()
+
+    return bandwidth
+
+def natural_sort_key(s):
+    _nsre = re.compile('([0-9]+)')
+    return [int(text) if text.isdigit() else text.lower()
+            for text in re.split(_nsre, s)] 

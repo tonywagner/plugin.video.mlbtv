@@ -242,8 +242,8 @@ def streamSelect(event_id, epg, teams_stream, stream_date):
         
     for item in epg:                
         #if str(item['playback_scenario']) == "HTTP_CLOUD_TABLET_60":
-        #if str(item['playback_scenario']) == "HTTP_CLOUD_WIRED_60":                        
-        if str(item['playback_scenario']) == "HTTP_CLOUD_WIRED":
+        if str(item['playback_scenario']) == "HTTP_CLOUD_WIRED_60":                        
+            #if str(item['playback_scenario']) == "HTTP_CLOUD_WIRED":
             stream_title.append(str(item['type'])[-4:].title() + " ("+item['display']+")")
             media_state.append(item['state'])             
             content_id.append(item['id'])  
@@ -396,8 +396,12 @@ def createHighlightStream(teams_stream, stream_date):
     match = re.compile('<media id="(.+?)"(.+?)<headline>(.+?)</headline>(.+?)<url playback-scenario="HTTP_CLOUD_TABLET_60">(.+?)</url>',re.DOTALL).findall(xml_data)   
     bandwidth = ''
     bandwidth = find(QUALITY,'(',' kbps)') 
-
+    
+    first_time_thru = True
     for media_id, junk, headline, junk2, clip_url in match:        
+        if first_time_thru and QUALITY == 'Always Ask':
+            bandwidth = getStreamQuality(clip_url)
+
         print clip_url
         if bandwidth != '' and int(bandwidth) < 4500:
             clip_url = clip_url.replace('master_tablet_60.m3u8', 'asset_'+bandwidth+'K.m3u8')
@@ -409,6 +413,7 @@ def createHighlightStream(teams_stream, stream_date):
         listitem.setInfo( type="Video", infoLabels={ "Title": headline })
         #RECAP_PLAYLIST.add(temp_recap_stream_url, listitem)
         HIGHLIGHT_PLAYLIST.add(clip_url, listitem)
+        first_time_thru = False
 
 
 
@@ -416,6 +421,9 @@ def createFullGameStream(stream_url, media_auth, media_state):
     #SD (800 kbps)|SD (1600 kbps)|HD (3000 kbps)|HD (5000 kbps)        
     bandwidth = ''
     bandwidth = find(QUALITY,'(',' kbps)')
+
+    if QUALITY == 'Always Ask':
+        bandwidth = getStreamQuality(stream_url)
 
     #Only set bandwidth if it's explicitly set
     if bandwidth != '':
@@ -430,6 +438,7 @@ def createFullGameStream(stream_url, media_auth, media_state):
             #5000K/5000_slide.m3u8 OR #3500K/3500_complete.m3u8
             # Slide = Live, Complete = Watch from beginning?
             stream_url = stream_url.replace(MASTER_FILE_TYPE, bandwidth+'K/'+bandwidth+'_complete.m3u8') 
+
 
     
     #cj = cookielib.LWPCookieJar()

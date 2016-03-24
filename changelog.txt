@@ -1,3 +1,7 @@
+2016.3.24
+- Updated stream qualities values to match newer masterfiles
+- Added "Always Ask" stream quality selection
+
 2016.3.16
 - Added Logout feature in add-on settings
 - Added Highlights (60fps supported)
