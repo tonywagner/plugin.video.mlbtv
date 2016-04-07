@@ -305,7 +305,7 @@ def streamSelect(event_id, gid, teams_stream, stream_date):
             '''
             if a < 2:
                 recap, condensed = getHighlightLinks(teams_stream, stream_date)                
-                if a == 1:
+                if a == 0:
                     stream_url = recap['url']
                 else:            
                     stream_url = condensed['url']
