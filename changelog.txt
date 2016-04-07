@@ -1,3 +1,10 @@
+2016.4.7
+- Replaced Highlights option with Recap (~3 min) and Condensed (~15 min) options for archive games
+- The date menu item can now be selected in order to watch the entire days recaps or condensed clips
+- Reversed stream quality selection dialog so better streams are on top
+- Fixed blackout message not displaying bug
+- Greatly reduced the size of the plugin string
+
 2016.3.24
 - Updated stream qualities values to match newer masterfiles
 - Added "Always Ask" stream quality selection

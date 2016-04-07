@@ -76,7 +76,9 @@ UA_PS4 = 'PS4Application libhttp/1.000 (PS4) libhttp/3.15 (PlayStation 4)'
 UA_ATBAT = 'At Bat/13268 CFNetwork/758.2.8 Darwin/15.0.0'
 
 #Playlists
-HIGHLIGHT_PLAYLIST = xbmc.PlayList(0)
+#HIGHLIGHT_PLAYLIST = xbmc.PlayList(0)
+RECAP_PLAYLIST = xbmc.PlayList(0)
+EXTENDED_PLAYLIST = xbmc.PlayList(1)
 
 
 
@@ -199,9 +201,9 @@ def get_params():
 
 
 
-def addStream(name,link_url,title,event_id,epg,icon=None,fanart=None,info=None,video_info=None,audio_info=None,teams_stream=None,stream_date=None):
+def addStream(name,title,event_id,gid,icon=None,fanart=None,info=None,video_info=None,audio_info=None,teams_stream=None,stream_date=None):
     ok=True
-    u=sys.argv[0]+"?url="+urllib.quote_plus(link_url)+"&mode="+str(104)+"&name="+urllib.quote_plus(name)+"&event_id="+urllib.quote_plus(str(event_id))+"&epg="+urllib.quote_plus(str(epg))+"&teams_stream="+urllib.quote_plus(str(teams_stream))+"&stream_date="+urllib.quote_plus(str(stream_date))
+    u=sys.argv[0]+"?mode="+str(104)+"&name="+urllib.quote_plus(name)+"&event_id="+urllib.quote_plus(str(event_id))+"&gid="+urllib.quote_plus(str(gid))+"&teams_stream="+urllib.quote_plus(str(teams_stream))+"&stream_date="+urllib.quote_plus(str(stream_date))
     
     #if icon != None:
     liz=xbmcgui.ListItem(name, iconImage=ICON, thumbnailImage=icon) 
@@ -258,7 +260,7 @@ def addLink(name,url,title,iconimage,info=None,video_info=None,audio_info=None,f
 
 
 
-def addDir(name,url,mode,iconimage,fanart=None,game_day=None):       
+def addDir(name,mode,iconimage,fanart=None,game_day=None):       
     ok=True    
     
     #Set day to today if none given
@@ -266,7 +268,7 @@ def addDir(name,url,mode,iconimage,fanart=None,game_day=None):
     #game_day = localToEastern()
     #game_day = '2016-01-27'
 
-    u=sys.argv[0]+"?url="+urllib.quote_plus(url)+"&mode="+str(mode)+"&name="+urllib.quote_plus(name)+"&icon="+urllib.quote_plus(iconimage)
+    u=sys.argv[0]+"?mode="+str(mode)+"&name="+urllib.quote_plus(name)+"&icon="+urllib.quote_plus(iconimage)
     if game_day != None:
         u = u+"&game_day="+urllib.quote_plus(game_day)
 
@@ -288,9 +290,9 @@ def addDir(name,url,mode,iconimage,fanart=None,game_day=None):
     return ok
 
 
-def addPlaylist(name,game_day,url,mode,iconimage,fanart=None):       
-    ok=True
-    u=sys.argv[0]+"?url="+urllib.quote_plus(url)+"&mode="+str(mode)+"&name="+urllib.quote_plus(name)+"&icon="+urllib.quote_plus(iconimage)
+def addPlaylist(name,game_day,mode,iconimage,fanart=None):       
+    ok=True    
+    u=sys.argv[0]+"?mode="+str(mode)+"&name="+urllib.quote_plus(name)+"&icon="+urllib.quote_plus(iconimage)+"&stream_date="+urllib.quote_plus(str(game_day))
 
     if iconimage != None:
         liz=xbmcgui.ListItem(name, iconImage="DefaultVideo.png", thumbnailImage=iconimage) 
@@ -304,8 +306,8 @@ def addPlaylist(name,game_day,url,mode,iconimage,fanart=None):
     else:
         liz.setProperty('fanart_image', FANART)
 
-    '''
-    info = {'plot':'Watch all the days highlights for '+game_day.strftime("%m/%d/%Y"),'tvshowtitle':'NHL','title':name,'originaltitle':name,'aired':game_day.strftime("%Y-%m-%d"),'genre':'Sports'}
+    
+    info = {'plot':'Watch all the days highlights for '+game_day,'tvshowtitle':'MLB','title':name,'originaltitle':name,'aired':game_day,'genre':'Sports'}
     audio_info, video_info = getAudioVideoInfo()
 
     if info != None:
@@ -314,7 +316,7 @@ def addPlaylist(name,game_day,url,mode,iconimage,fanart=None):
         liz.addStreamInfo('video', video_info)
     if audio_info != None:
         liz.addStreamInfo('audio', audio_info)
-    '''
+    
 
     ok=xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=u,listitem=liz,isFolder=False)    
     #xbmcplugin.setContent(int(sys.argv[1]), 'episodes')
@@ -514,7 +516,7 @@ def getStreamQuality(stream_url):
                     stream_title.append(bandwidth)                           
     
 
-    stream_title.sort(key=natural_sort_key) 
+    stream_title.sort(key=natural_sort_key,reverse=True) 
     dialog = xbmcgui.Dialog() 
     ret = dialog.select('Choose Stream Quality', stream_title)    
     if ret >=0:        
@@ -528,3 +530,4 @@ def natural_sort_key(s):
     _nsre = re.compile('([0-9]+)')
     return [int(text) if text.isdigit() else text.lower()
             for text in re.split(_nsre, s)] 
+
