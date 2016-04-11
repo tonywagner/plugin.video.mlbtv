@@ -315,7 +315,7 @@ def streamSelect(event_id, gid, teams_stream, stream_date):
                 else:
                     bandwidth = find(QUALITY,'(',' kbps)')
                 
-                createHighlightStream(stream_url, bandwidth)
+                stream_url = createHighlightStream(stream_url, bandwidth)
             elif a == 2:        
                 dialog = xbmcgui.Dialog() 
                 n = dialog.select('Choose Stream', stream_title)
@@ -439,6 +439,8 @@ def getGamesForDate(stream_date):
 
 
 def createHighlightStream(url, bandwidth):
+    print "Here's bandwidth"
+    print bandwidth
     if bandwidth != '' and int(bandwidth) < 4500:
             url = url.replace('master_tablet_60.m3u8', 'asset_'+bandwidth+'K.m3u8')
 
