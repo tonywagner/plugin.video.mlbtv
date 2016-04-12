@@ -247,9 +247,8 @@ def streamSelect(event_id, gid, teams_stream, stream_date):
     archive_type = ['Recap','Condensed','Full Game']
         
     for item in epg:                
-        #if str(item['playback_scenario']) == "HTTP_CLOUD_TABLET_60":
-        if str(item['playback_scenario']) == "HTTP_CLOUD_WIRED_60":                        
-            #if str(item['playback_scenario']) == "HTTP_CLOUD_WIRED":
+        
+        if str(item['playback_scenario']) == PLAYBACK_SCENARIO:                                    
             stream_title.append(str(item['type'])[-4:].title() + " ("+item['display']+")")
             media_state.append(item['state'])             
             content_id.append(item['id'])  

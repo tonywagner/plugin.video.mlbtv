@@ -38,6 +38,7 @@ FAV_TEAM = str(settings.getSetting(id="fav_team"))
 TEAM_NAMES = settings.getSetting(id="team_names")
 TIME_FORMAT = settings.getSetting(id="time_format")
 VIEW_MODE = settings.getSetting(id='view_mode')
+SINGLE_TEAM = str(settings.getSetting(id='single_team'))
 
 
 #Colors
@@ -65,8 +66,13 @@ FANART = ROOTDIR+"/fanart.jpg"
 PREV_ICON = ROOTDIR+"/icon.png"
 NEXT_ICON = ROOTDIR+"/icon.png"
 
-MASTER_FILE_TYPE = 'master_wired.m3u8'
-#master_tablet_60.m3u8
+if SINGLE_TEAM == 'true':
+    MASTER_FILE_TYPE = 'master_wired.m3u8'
+    PLAYBACK_SCENARIO = 'HTTP_CLOUD_WIRED'
+else:
+    MASTER_FILE_TYPE = 'master_wired60.m3u8'
+    PLAYBACK_SCENARIO = 'HTTP_CLOUD_WIRED_60'
+
 
 #User Agents
 UA_IPHONE = 'AppleCoreMedia/1.0.0.13D15 (iPhone; U; CPU OS 9_2_1 like Mac OS X; en_us)'
