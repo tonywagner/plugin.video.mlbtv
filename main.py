@@ -50,11 +50,11 @@ def todaysGames(game_day):
     RECAP_PLAYLIST.clear()
     EXTENDED_PLAYLIST.clear()
 
-    try:
-        for game in json_source['data']['games']['game']:        
-            createGameListItem(game, game_day)
-    except:
-        pass
+    #try:
+    for game in json_source['data']['games']['game']:        
+        createGameListItem(game, game_day)
+    #except:
+    #pass
     
 
     next_day = display_day + timedelta(days=1)
@@ -178,8 +178,12 @@ def createGameListItem(game, game_day):
     title = title.encode('utf-8')
 
     #Label free game of the day if applicable
-    #if bool(game['content']['media']['epg'][0]['items'][0]['freeGame']) and game_day >= localToEastern():
-    #name = name + colorString(" Free", FREE)
+    try:
+        if game['game_media']['homebase']['media'][0]['free'] == "ALL":
+            #and game_day >= localToEastern():
+            name = colorString(name, FREE)
+    except:
+        pass
     
     #Set audio/video info based on stream quality setting
     audio_info, video_info = getAudioVideoInfo()
@@ -573,7 +577,7 @@ def fetchStream(content_id,event_id,playback_scenario):
     except:
         pass
 
-    if expired_cookies or num_cookies == 0:
+    if expired_cookies or num_cookies == 0 or USERNAME != OLD_USERNAME or PASSWORD != OLD_PASSWORD:
         login()
 
 
@@ -660,16 +664,33 @@ def fetchStream(content_id,event_id,playback_scenario):
     #stream_url = find(xml_data,'<url><![CDATA[',']]></url>')       
 
     if json_source['status_code'] == 1:
-        print str(json_source['user_verified_event'][0]['user_verified_content'][0]['user_verified_media_item'][0]['blackout_status']).upper()
-        if 'BLACKOUT' in str(json_source['user_verified_event'][0]['user_verified_content'][0]['user_verified_media_item'][0]['blackout_status']).upper():
+        uv_media_item = json_source['user_verified_event'][0]['user_verified_content'][0]['user_verified_media_item'][0]
+        print str(uv_media_item ['blackout_status']).upper()
+        if 'BLACKOUT' in str(uv_media_item ['blackout_status']).upper():            
             msg = "We're sorry.  We have determined that you are blacked out of watching the game you selected due to Major League Baseball exclusivities."
+            #try:
+            if str(uv_media_item ['media_item']['state']).upper() == 'MEDIA_ARCHIVE':
+                #cc_url = str(json_source['user_verified_event'][0]['user_verified_content'][0]['domain_specific_attributes'][3]['value'])
+                for attribute in json_source['user_verified_event'][0]['user_verified_content'][0]['domain_specific_attributes']:
+                    if str(attribute['name']).lower() == 'inning_index_location_xml':
+                        inning_xml_url = str(attribute['value'])
+                        #inning_xml_url = "http://mlb.mlb.com/mlb/mmls2016/447002.xml"
+                        blackout_lift_min, blackout_lift_time = getBlackoutLiftTime(inning_xml_url)
+                        msg = msg + " This blackout will expire in "+str(blackout_lift_min)+" minutes at approximately "+str(blackout_lift_time)+"."
+                        break
+
             dialog = xbmcgui.Dialog() 
             ok = dialog.ok('Game Blacked Out', msg) 
             sys.exit()
             xbmc.executebuiltin('Dialog.Close(all,true)')
-
+        elif str(uv_media_item ['auth_status']) == 'NotAuthorizedStatus':
+            msg = "You do not have an active MLB.TV premium subscription. If you are using a Single Team or Free subscription please check this is enabled in the addon settings."
+            dialog = xbmcgui.Dialog() 
+            ok = dialog.ok('Account Not Authorized', msg) 
+            sys.exit()
+            xbmc.executebuiltin('Dialog.Close(all,true)')
         else:
-            stream_url = json_source['user_verified_event'][0]['user_verified_content'][0]['user_verified_media_item'][0]['url']                
+            stream_url = uv_media_item ['url']                
             #Find subtitles
             '''
             for item in json_source['user_verified_event'][0]['user_verified_content'][0]['domain_specific_attributes']:
@@ -800,7 +821,9 @@ def login():
         settings.setSetting(id='password', value=PASSWORD)
 
    
-    if USERNAME != '' and PASSWORD != '':        
+    if USERNAME != '' and PASSWORD != '':      
+        settings.setSetting("old_username",USERNAME)
+        settings.setSetting("old_password",PASSWORD)
         cj = cookielib.LWPCookieJar(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp')) 
         opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))   
          
@@ -841,6 +864,7 @@ def login():
         cj.save(ignore_discard=True); 
 
 def logout():
+    '''
     cj = cookielib.LWPCookieJar(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'))   
     try:  
         cj.load(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'),ignore_discard=True)
@@ -849,6 +873,16 @@ def logout():
     
     cj.clear()
     cj.save(ignore_discard=True);   
+    '''
+    #Just delete the file
+    #ADDON_PATH_PROFILE+'cookies.lwp'
+    cookie_file = xbmc.translatePath(os.path.join(ADDON_PATH_PROFILE+'cookies.lwp'))
+    try:
+        os.remove(cookie_file)
+    except:
+        pass
+    
+
 
     settings.setSetting(id='session_key', value='') 
     dialog = xbmcgui.Dialog() 

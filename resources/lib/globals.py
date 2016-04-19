@@ -8,6 +8,7 @@ import urllib, urllib2
 import json
 import cookielib
 import time
+import math
 from bs4 import BeautifulSoup 
 from datetime import date, datetime, timedelta
 from urllib2 import URLError, HTTPError
@@ -31,6 +32,8 @@ LOCAL_STRING = ADDON.getLocalizedString
 settings = xbmcaddon.Addon(id='plugin.video.mlbtv')
 USERNAME = str(settings.getSetting(id="username"))
 PASSWORD = str(settings.getSetting(id="password"))
+OLD_USERNAME = str(settings.getSetting(id="old_username"))
+OLD_PASSWORD = str(settings.getSetting(id="old_password"))
 ROGERS_SUBSCRIBER = str(settings.getSetting(id="rogers"))
 QUALITY = str(settings.getSetting(id="quality"))
 NO_SPOILERS = settings.getSetting(id="no_spoilers")
@@ -537,3 +540,52 @@ def natural_sort_key(s):
     return [int(text) if text.isdigit() else text.lower()
             for text in re.split(_nsre, s)] 
 
+def getBlackoutLiftTime(url):
+    #"http://mediadownloads.mlb.com/ttml/2016/04/14/584182283.ttml"
+    #url = 'http://mediadownloads.mlb.com/ttml/2016/04/14/584182283.ttml'
+    print "url " + url
+    req = urllib2.Request(url)    
+    req.add_header('Connection', 'close')
+    req.add_header('User-Agent', UA_IPAD)
+    try:    
+        response = urllib2.urlopen(req)            
+        xml_data = response.read()                                 
+        response.close()                
+    except HTTPError as e:
+        print 'The server couldn\'t fulfill the request.'
+        print 'Error code: ', e.code          
+        sys.exit()
+    
+    
+    #<p begin="19:59:16;28" end="19:59:20;06">PRESENTED BY THE ALLEGHENY HEALTH NETWORK.</p>
+    #match = re.compile("<p begin='(.+?)' end='(.+?)'>",re.DOTALL).findall(xml_data)   
+    print xml_data
+    match = re.compile('<inningTime type="SCAST" start="(.+?)" end="(.+?)"/>',re.DOTALL).findall(xml_data) 
+    
+    last_end_time = ''
+    for begin_time, end_time in match:        
+        last_end_time = end_time
+
+
+    #ex 19:59:20;06
+    game_end_time = datetime.strptime(last_end_time,'%H:%M:%S')
+    blackout_lift_time = game_end_time + timedelta(minutes = 90)
+    now = datetime.strptime(datetime.utcnow().strftime('%H:%M:%S'),'%H:%M:%S')
+    
+    minutes_until_lift = int(math.ceil((blackout_lift_time - now).total_seconds() / 60))
+    lift_time = datetime.utcnow() + timedelta(minutes = minutes_until_lift)
+    local_lift_time = UTCToLocal(lift_time)
+
+    if TIME_FORMAT == '0':
+         local_lift_time = local_lift_time.strftime('%I:%M %p').lstrip('0')
+    else:
+         local_lift_time = local_lift_time.strftime('%H:%M')
+
+    print "END TIME = " + str(last_end_time[:-3])
+    print "Minutes until lift " + str(minutes_until_lift)
+    print "Lift time utc " + str(lift_time)    
+    print "Lift time local " + local_lift_time
+
+
+    return minutes_until_lift, local_lift_time
+    

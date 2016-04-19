@@ -1,3 +1,10 @@
+2016.4.19
+- Free games are now highlighted green
+- Changed wording on single team subscription to include free game subscription
+- Added not authorized message when user attempts to request a stream their account is not authorized to access
+- Added blackout lift time in blackout message if game has finished
+- Added logic to catch a username or password change and perform a fresh login
+
 2016.4.12
 - Added Single Team Subscription setting
 - Fixed Full Game not obeying the stream quality setting
