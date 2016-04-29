@@ -1,3 +1,6 @@
+2016.4.29.1
+- Fixed choose stream bug
+
 2016.4.29
 - Changed Full Games selection to use the teams abbreviated name instead of Home/Away
 - Highlights option now avaiable for Live and Archive games (no MLB tv account required)

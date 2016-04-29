@@ -346,6 +346,7 @@ def streamSelect(event_id, gid, teams_stream, stream_date):
                             bandwidth = find(QUALITY,'(',' kbps)')
                 else:
                     try:
+                        n = n -1
                         stream_url, media_auth = fetchStream(content_id[n],event_id,playback_scenario[n])            
                         stream_url = createFullGameStream(stream_url,media_auth,media_state[n])           
                     except:
