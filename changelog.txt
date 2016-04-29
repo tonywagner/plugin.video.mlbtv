@@ -1,3 +1,10 @@
+2016.4.29
+- Changed Full Games selection to use the teams abbreviated name instead of Home/Away
+- Highlights option now avaiable for Live and Archive games (no MLB tv account required)
+- Play individual highlights or select Play All to watch all highlights of the selected game
+- Display recap / condensed game not available message instead of erroring out
+- Added check for invalid username/password
+
 2016.4.19
 - Free games are now highlighted green
 - Changed wording on single team subscription to include free game subscription

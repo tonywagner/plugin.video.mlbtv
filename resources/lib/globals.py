@@ -85,9 +85,11 @@ UA_PS4 = 'PS4Application libhttp/1.000 (PS4) libhttp/3.15 (PlayStation 4)'
 UA_ATBAT = 'At Bat/13268 CFNetwork/758.2.8 Darwin/15.0.0'
 
 #Playlists
-#HIGHLIGHT_PLAYLIST = xbmc.PlayList(0)
 RECAP_PLAYLIST = xbmc.PlayList(0)
 EXTENDED_PLAYLIST = xbmc.PlayList(1)
+#HIGHLIGHT_PLAYLIST = xbmc.PlayList(2)
+
+
 
 
 
@@ -454,6 +456,7 @@ def getConfigFile():
     response = urllib2.urlopen(req, '')
     json_source = json.load(response)   
     response.close()
+    
 
 def setViewMode():
     global VIEW_MODE

@@ -56,7 +56,6 @@ def todaysGames(game_day):
     #except:
     #pass
     
-
     next_day = display_day + timedelta(days=1)
     addDir('[B]Next Day >>[/B]',101,NEXT_ICON,FANART,next_day.strftime("%Y-%m-%d"))    
 
@@ -229,10 +228,12 @@ def streamSelect(event_id, gid, teams_stream, stream_date):
         sys.exit()
 
     #Find selected game
+    teams = {}
     for game in json_source['data']['games']['game']:
         if gid == game['id']:
             try:
                 epg = game['game_media']['homebase']['media']
+                teams={'Home':game['home_name_abbrev'],'Away':game['away_name_abbrev']}
                 break
             except:
                 #no stream info, abort! abort!
@@ -247,13 +248,15 @@ def streamSelect(event_id, gid, teams_stream, stream_date):
     free_game = []
     media_state = []
     playback_scenario = []    
-    #archive_type = ['Highlights','Recap','Condensed','Full Game']    
-    archive_type = ['Recap','Condensed','Full Game']
+    archive_type = ['Highlights','Recap','Condensed','Full Game']    
+    #archive_type = ['Recap','Condensed','Full Game']
         
     for item in epg:                
         
-        if str(item['playback_scenario']) == PLAYBACK_SCENARIO:                                    
-            stream_title.append(str(item['type'])[-4:].title() + " ("+item['display']+")")
+        if str(item['playback_scenario']) == PLAYBACK_SCENARIO:
+            title = str(item['type'])[-4:].title()
+            #stream_title.append(str(item['type'])[-4:].title() + " ("+item['display']+")")
+            stream_title.append(teams[title]+ " ("+item['display']+")")
             media_state.append(item['state'])             
             content_id.append(item['id'])  
             playback_scenario.append(str(item['playback_scenario']))       
@@ -294,75 +297,115 @@ def streamSelect(event_id, gid, teams_stream, stream_date):
     if len(media_state) > 0:
         if media_state[0] == 'MEDIA_ARCHIVE':        
             dialog = xbmcgui.Dialog()         
-            a = dialog.select('Choose Archive', archive_type)    
-            '''            
-            if a == 0:
-                #Highlighs                
-                #try:            
-                #stream_url = getHighlightLinks(teams_stream, stream_date)                
-                recap_url, condensed_url = getHighlightLinks(teams_stream, stream_date)                
-                play_highlights = 1
-                #except:
-                #pass         
-            elif
-            '''
-            if a < 2:
-                recap, condensed = getHighlightLinks(teams_stream, stream_date)                
-                if a == 0:
-                    stream_url = recap['url']
-                else:            
-                    stream_url = condensed['url']
+            a = dialog.select('Choose Archive', archive_type)
 
-                if QUALITY == 'Always Ask':       
-                    bandwidth = getStreamQuality(str(recap['url']))
-                else:
-                    bandwidth = find(QUALITY,'(',' kbps)')
-                
-                stream_url = createHighlightStream(stream_url, bandwidth)
-            elif a == 2:        
-                dialog = xbmcgui.Dialog() 
-                n = dialog.select('Choose Stream', stream_title)
-                if n > -1:                            
-                    stream_url, media_auth = fetchStream(content_id[n],event_id,playback_scenario[n])            
-                    stream_url = createFullGameStream(stream_url,media_auth,media_state[n])                  
+            if a > -1:
+                if a < 3:
+                    recap, condensed, highlights = getHighlightLinks(teams_stream, stream_date)                
+                    if a == 0:
+                        play_highlights = 1
+                    elif a == 1:
+                        try:
+                            stream_url = recap['url']
+                        except:
+                            dialog = xbmcgui.Dialog() 
+                            ok = dialog.ok('Recap Not Available', 'The recap for this game is not yet available. \nPlease check back later.')                                                
+                    else:            
+                        try:
+                            stream_url = condensed['url']
+                        except:
+                            dialog = xbmcgui.Dialog() 
+                            ok = dialog.ok('Condensed Game Not Available', 'The condensed game is not yet available. \nPlease check back later.')                         
+                           
+
+                    if QUALITY == 'Always Ask' and ((len(highlights) > 0 and play_highlights == 1) or stream_url != '') :       
+                        bandwidth = getStreamQuality(str(highlights[0][0]))
+                    else:
+                        bandwidth = find(QUALITY,'(',' kbps)')
+                    
+                    stream_url = createHighlightStream(stream_url, bandwidth)
+                elif a == 3:        
+                    dialog = xbmcgui.Dialog() 
+                    n = dialog.select('Choose Stream', stream_title)
+                    if n > -1:                            
+                        stream_url, media_auth = fetchStream(content_id[n],event_id,playback_scenario[n])            
+                        stream_url = createFullGameStream(stream_url,media_auth,media_state[n])                  
         else:
-            dialog = xbmcgui.Dialog() 
+            #Add Highlights option to live games
+            stream_title.insert(0,'Highlights')
+            dialog = xbmcgui.Dialog()             
             n = dialog.select('Choose Stream', stream_title)
-            if n > -1:                        
-                stream_url, media_auth = fetchStream(content_id[n],event_id,playback_scenario[n])            
-                stream_url = createFullGameStream(stream_url,media_auth,media_state[n])           
+            if n > -1:  
+                if stream_title[n] == 'Highlights':
+                    recap, condensed, highlights = getHighlightLinks(teams_stream, stream_date)                
+                    if len(highlights) > 0:
+                        play_highlights = 1
+                        if QUALITY == 'Always Ask':       
+                            bandwidth = getStreamQuality(str(highlights[0][0]))
+                        else:
+                            bandwidth = find(QUALITY,'(',' kbps)')
+                else:
+                    try:
+                        stream_url, media_auth = fetchStream(content_id[n],event_id,playback_scenario[n])            
+                        stream_url = createFullGameStream(stream_url,media_auth,media_state[n])           
+                    except:
+                        pass
     else:
         archive_type = ['Highlights']
         dialog = xbmcgui.Dialog()         
         a = dialog.select('Choose Archive', archive_type)                
         if a == 0:
-            getHighlightLinks(teams_stream, stream_date)                
+            #getHighlightLinks(teams_stream, stream_date)                
             play_highlights = 1
                                 
     
     print "STREAM BEFORE PLAY"
     print stream_url    
     listitem = xbmcgui.ListItem(path=stream_url)        
-
-    if stream_url != '':            
+    
+    if '.m3u8' in stream_url:            
         #listitem.setMimeType("application/x-mpegURL")        
         xbmcplugin.setResolvedUrl(handle=addon_handle, succeeded=True, listitem=listitem)
         
-    elif play_highlights == 1:             
-        #-----------------------------------------------------------
-        #Hack to get around resolved url wanting a single list item
-        #-----------------------------------------------------------
-        #Satisify the resolved url call
-        listitem = xbmcgui.ListItem()    
-        xbmcplugin.setResolvedUrl(handle=addon_handle, succeeded=False, listitem=listitem)
-        xbmc.sleep(5)
-        #Close the error dialog
-        xbmc.executebuiltin('Dialog.Close(all,true)')
-        xbmc.sleep(500)
-        #-------------------------------------------------- 
-        #Play highlights        
-        xbmc.Player().play(HIGHLIGHT_PLAYLIST)         
-               
+    elif play_highlights == 1:    
+        highlight_name = ['Play All']
+        highlight_url = ['junk']
+        for i in range(0,len(highlights)-1):
+            #highlights.append([clip_url,headline,icon])
+            highlight_url.append(highlights[i][0])
+            highlight_name.append(highlights[i][1])
+            
+
+        dialog = xbmcgui.Dialog()         
+        a = dialog.select('Choose Highlight', highlight_name)             
+        #print "dialog select value " + str(a)
+        if a > 0:
+            #listitem = xbmcgui.ListItem(thumbnailImage=highlights[a-1][2], path=highlights[a-1][0])                
+            listitem = xbmcgui.ListItem(path=createHighlightStream(highlight_url[a], bandwidth))                
+            listitem.setInfo( type="Video", infoLabels={ "Title": highlight_name[a] })         
+            xbmcplugin.setResolvedUrl(handle=addon_handle, succeeded=True, listitem=listitem)            
+        else:           
+            HIGHLIGHT_PLAYLIST= xbmc.PlayList(xbmc.PLAYLIST_VIDEO)
+            HIGHLIGHT_PLAYLIST.clear()
+            for i in range(0,len(highlights)-1):
+                #highlights.append([clip_url,headline,icon])                                
+                listitem = xbmcgui.ListItem(highlights[i][1], thumbnailImage=highlights[i][2])                
+                listitem.setInfo( type="Video", infoLabels={ "Title": highlights[i][1] })            
+                HIGHLIGHT_PLAYLIST.add(createHighlightStream(highlights[i][0], bandwidth), listitem)
+
+            #-----------------------------------------------------------
+            #Hack to get around resolved url wanting a single list item
+            #-----------------------------------------------------------
+            #Satisify the resolved url call  
+            listitem = xbmcgui.ListItem(path='') 
+            xbmcplugin.setResolvedUrl(handle=addon_handle, succeeded=False, listitem=listitem)          
+            xbmc.sleep(5)
+            #Close the error dialog
+            xbmc.executebuiltin('Dialog.Close(all,true)')
+            #xbmc.sleep(500)
+            #-------------------------------------------------- 
+            #Play highlights        
+            #xbmc.Player().play(HIGHLIGHT_PLAYLIST)
     else:        
         #xbmcplugin.setResolvedUrl(addon_handle, False, listitem)
         xbmc.executebuiltin('Dialog.Close(all,true)')
@@ -441,9 +484,7 @@ def getGamesForDate(stream_date):
     pDialog.close()
 
 
-def createHighlightStream(url, bandwidth):
-    print "Here's bandwidth"
-    print bandwidth
+def createHighlightStream(url, bandwidth):    
     if bandwidth != '' and int(bandwidth) < 4500:
             url = url.replace('master_tablet_60.m3u8', 'asset_'+bandwidth+'K.m3u8')
 
@@ -486,21 +527,17 @@ def getHighlightLinks(teams_stream, stream_date, gid=None, bandwidth=None):
     
     recap = {}
     condensed = {}
-    for media_id, media_tag, headline, junk1, icon, junk2, clip_url in match:                
-        '''
+    highlights = []
+
+    for media_id, media_tag, headline, junk1, icon, junk2, clip_url in match:  
         print clip_url
         if 'media-type="T"' in media_tag:
-            if bandwidth != '' and int(bandwidth) < 4500:
-                clip_url = clip_url.replace('master_tablet_60.m3u8', 'asset_'+bandwidth+'K.m3u8')
+            #if bandwidth != '' and int(bandwidth) < 4500:
+            #clip_url = clip_url.replace('master_tablet_60.m3u8', 'asset_'+bandwidth+'K.m3u8')
             
-            clip_url = clip_url + '|User-Agent='+UA_IPAD
-            print clip_url
-            icon = 'http://mediadownloads.mlb.com/mlbam/'+year+'/'+month+'/'+day+'/images/mlbf_'+media_id+'_th_43.jpg'
-            listitem = xbmcgui.ListItem(headline, thumbnailImage=icon)    
-            listitem.setInfo( type="Video", infoLabels={ "Title": headline })
-            #RECAP_PLAYLIST.add(temp_recap_stream_url, listitem)
-            #HIGHLIGHT_PLAYLIST.add(clip_url, listitem)
-        '''        
+            #clip_url = clip_url + '|User-Agent='+UA_IPAD                        
+            highlights.append([clip_url,headline,icon])
+       
 
         if 'media-type="R"' in media_tag:           
             #icon = 'http://mediadownloads.mlb.com/mlbam/'+year+'/'+month+'/'+day+'/images/mlbf_'+media_id+'_th_43.jpg'  
@@ -511,7 +548,7 @@ def getHighlightLinks(teams_stream, stream_date, gid=None, bandwidth=None):
             title = headline
             condensed = {'url':clip_url, 'icon':icon, 'title':headline}
 
-    return recap, condensed
+    return recap, condensed, highlights
 
 
 
@@ -578,6 +615,12 @@ def fetchStream(content_id,event_id,playback_scenario):
         pass
 
     if expired_cookies or num_cookies == 0 or USERNAME != OLD_USERNAME or PASSWORD != OLD_PASSWORD:
+        #Remove cookie file
+        cookie_file = xbmc.translatePath(os.path.join(ADDON_PATH_PROFILE+'cookies.lwp'))
+        try:
+            os.remove(cookie_file)
+        except:
+            pass
         login()
 
 
@@ -656,12 +699,11 @@ def fetchStream(content_id,event_id,playback_scenario):
     req.add_header("Connection", "keep-alive")    
     req.add_header("User-Agent", UA_PS4)
 
-    response = opener.open(req)
-    #xml_data = response.read()    
+    response = opener.open(req)    
     json_source = json.load(response)                                   
     response.close()
     
-    #stream_url = find(xml_data,'<url><![CDATA[',']]></url>')       
+    
 
     if json_source['status_code'] == 1:
         uv_media_item = json_source['user_verified_event'][0]['user_verified_content'][0]['user_verified_media_item'][0]
@@ -843,8 +885,18 @@ def login():
              "User-Agent": UA_PC})  
              
        
+
+        
         try:
             response = opener.open(req) 
+            # if url has not changed the login was not valid.
+            if response.geturl() == url:
+                msg = "Please check that your username and password are correct"
+                dialog = xbmcgui.Dialog() 
+                ok = dialog.ok('Invalid Login', msg)
+                sys.exit()
+            else:
+                cj.save(ignore_discard=True);
         except HTTPError as e:
             print 'The server couldn\'t fulfill the request.'
             print 'Error code: ', e.code    
@@ -861,33 +913,19 @@ def login():
         response.close()
       
 
-        cj.save(ignore_discard=True); 
-
-def logout():
-    '''
-    cj = cookielib.LWPCookieJar(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'))   
-    try:  
-        cj.load(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'),ignore_discard=True)
-    except:
-        pass
-    
-    cj.clear()
-    cj.save(ignore_discard=True);   
-    '''
-    #Just delete the file
-    #ADDON_PATH_PROFILE+'cookies.lwp'
+def logout():    
+    #Just delete the cookie file
     cookie_file = xbmc.translatePath(os.path.join(ADDON_PATH_PROFILE+'cookies.lwp'))
     try:
         os.remove(cookie_file)
     except:
         pass
-    
-
 
     settings.setSetting(id='session_key', value='') 
     dialog = xbmcgui.Dialog() 
     title = "Logout Successful" 
     dialog.notification(title, 'Logout completed successfully', ICON, 5000, False)
+
 
     
 params=get_params()
