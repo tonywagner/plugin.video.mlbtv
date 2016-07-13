@@ -1,3 +1,8 @@
+2016.7.13
+- Fixed error loading MLB plus games
+- Fixed error when single or no games for day (thanks bontibon)
+- Fixed issue when game is only aired nationally
+
 2016.4.29.1
 - Fixed choose stream bug
 

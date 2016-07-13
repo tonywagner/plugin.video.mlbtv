@@ -236,7 +236,11 @@ def streamSelect(event_id, gid, teams_stream, stream_date):
     itr = json_source['data']['games']['game']
     if type(itr) is not list:
         itr = [itr]
-    for game in itr:
+        #xbmc.log(str(itr))
+    for game in itr:        
+        xbmc.log(game['id'])
+        xbmc.log(gid)
+
         if gid == game['id']:
             try:
                 epg = game['game_media']['homebase']['media']
@@ -248,8 +252,8 @@ def streamSelect(event_id, gid, teams_stream, stream_date):
                 dialog = xbmcgui.Dialog() 
                 ok = dialog.ok('Streams Not Found', msg)        
                 sys.exit()
-       
-
+     
+                 
     stream_title = []    
     content_id = []
     free_game = []
@@ -257,34 +261,45 @@ def streamSelect(event_id, gid, teams_stream, stream_date):
     playback_scenario = []    
     archive_type = ['Highlights','Recap','Condensed','Full Game']    
     #archive_type = ['Recap','Condensed','Full Game']
-        
-    for item in epg:                
-        
-        if str(item['playback_scenario']) == PLAYBACK_SCENARIO:
-            title = str(item['type'])[-4:].title()
-            #stream_title.append(str(item['type'])[-4:].title() + " ("+item['display']+")")
-            if title in teams:
-                stream_title.append(teams[title]+ " ("+item['display']+")")
-            media_state.append(item['state'])             
-            content_id.append(item['id'])  
-            playback_scenario.append(str(item['playback_scenario']))       
+    try:  
+        for item in epg:  
+            xbmc.log(str(item))    
+            xbmc.log(str(item['playback_scenario']))       
+            xbmc.log(PLAYBACK_SCENARIO)
+            if str(item['playback_scenario']) == PLAYBACK_SCENARIO:
+                
+                if item['enhanced'] == 'Y':
+                    title = 'Enhanced'
+                    stream_title.append(title)
+                else:            
+                    title = str(item['type'])[6:].title()   
+                    try:
+                        stream_title.append(teams[title] + " ("+item['display']+")")            
+                    except:
+                        stream_title.append(title+ " ("+item['display']+")")
 
-        elif str(item['playback_scenario']) == "HTTP_CLOUD_AUDIO" and item['state'] != 'MEDIA_OFF':
-            title = str(item['type']).title()
-            title = title.replace('_', ' ')
-            stream_title.append(title + " ("+item['display']+")")
-            media_state.append(item['state'])             
-            content_id.append(item['id'])  
-            playback_scenario.append(str(item['playback_scenario']))          
-        '''
-        elif str(item['playback_scenario']) == "FLASH_2500K_1280X720" and item['type'] != 'condensed_game':
-            title = str(item['type']).title()
-            title = title.replace('_', ' ')
-            stream_title.append(title + " ("+item['display']+")")
-            media_state.append(item['state'])             
-            content_id.append(item['id'])  
-            playback_scenario.append("HTTP_CLOUD_WIRED_60") 
-        '''
+                media_state.append(item['state'])             
+                content_id.append(item['id'])  
+                playback_scenario.append(str(item['playback_scenario']))       
+
+            elif str(item['playback_scenario']) == "HTTP_CLOUD_AUDIO" and item['state'] != 'MEDIA_OFF':
+                title = str(item['type']).title()
+                title = title.replace('_', ' ')
+                stream_title.append(title + " ("+item['display']+")")
+                media_state.append(item['state'])             
+                content_id.append(item['id'])  
+                playback_scenario.append(str(item['playback_scenario']))          
+    except:
+        pass
+    '''
+    elif str(item['playback_scenario']) == "FLASH_2500K_1280X720" and item['type'] != 'condensed_game':
+        title = str(item['type']).title()
+        title = title.replace('_', ' ')
+        stream_title.append(title + " ("+item['display']+")")
+        media_state.append(item['state'])             
+        content_id.append(item['id'])  
+        playback_scenario.append("HTTP_CLOUD_WIRED_60") 
+    '''
     #All past games should have highlights
     if len(stream_title) == 0 and stream_date > localToEastern():
         msg = "No playable streams found."
@@ -295,8 +310,8 @@ def streamSelect(event_id, gid, teams_stream, stream_date):
     #Reverse Order for display purposes
     #stream_title.reverse()
     #ft.reverse()
-    print "MEDIA STATE"
-    print media_state
+    xbmc.log("MEDIA STATE")
+    xbmc.log(str(media_state))
 
     stream_url = ''
     media_auth = ''
