@@ -50,11 +50,15 @@ def todaysGames(game_day):
     RECAP_PLAYLIST.clear()
     EXTENDED_PLAYLIST.clear()
 
-    #try:
-    for game in json_source['data']['games']['game']:        
-        createGameListItem(game, game_day)
-    #except:
-    #pass
+    try:
+            itr = json_source['data']['games']['game']
+            if type(itr) is not list:
+                itr = [itr]
+            for game in itr:
+                createGameListItem(game, game_day)
+    except:
+        # if there are no games on this date
+        pass
     
     next_day = display_day + timedelta(days=1)
     addDir('[B]Next Day >>[/B]',101,NEXT_ICON,FANART,next_day.strftime("%Y-%m-%d"))    
@@ -229,7 +233,10 @@ def streamSelect(event_id, gid, teams_stream, stream_date):
 
     #Find selected game
     teams = {}
-    for game in json_source['data']['games']['game']:
+    itr = json_source['data']['games']['game']
+    if type(itr) is not list:
+        itr = [itr]
+    for game in itr:
         if gid == game['id']:
             try:
                 epg = game['game_media']['homebase']['media']
@@ -256,7 +263,8 @@ def streamSelect(event_id, gid, teams_stream, stream_date):
         if str(item['playback_scenario']) == PLAYBACK_SCENARIO:
             title = str(item['type'])[-4:].title()
             #stream_title.append(str(item['type'])[-4:].title() + " ("+item['display']+")")
-            stream_title.append(teams[title]+ " ("+item['display']+")")
+            if title in teams:
+                stream_title.append(teams[title]+ " ("+item['display']+")")
             media_state.append(item['state'])             
             content_id.append(item['id'])  
             playback_scenario.append(str(item['playback_scenario']))       
@@ -455,7 +463,10 @@ def getGamesForDate(stream_date):
     
     pDialog = xbmcgui.DialogProgressBG()
     pDialog.create('MLB Highlights', 'Retrieving Streams ...')
-    perc_increments = 100/len(match) 
+    match_count = len(match)
+    if match_count == 0:
+        match_count = 1 # prevent division by zero when no games
+    perc_increments = 100/match_count
     first_time_thru = True
     bandwidth = find(QUALITY,'(',' kbps)')
 
