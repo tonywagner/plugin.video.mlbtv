@@ -408,28 +408,22 @@ def streamSelect(event_id, gid, teams_stream, stream_date):
             listitem = xbmcgui.ListItem(path=createHighlightStream(highlight_url[a], bandwidth))                
             listitem.setInfo( type="Video", infoLabels={ "Title": highlight_name[a] })         
             xbmcplugin.setResolvedUrl(handle=addon_handle, succeeded=True, listitem=listitem)            
-        else:           
+        elif a == 0:           
             HIGHLIGHT_PLAYLIST= xbmc.PlayList(xbmc.PLAYLIST_VIDEO)
             HIGHLIGHT_PLAYLIST.clear()
+            xbmc.log(str(highlights))
+
+            listitem = xbmcgui.ListItem('dummy', thumbnailImage='')                
+            listitem.setInfo( type="Video", infoLabels={ "Title": 'dummy' })               
+            HIGHLIGHT_PLAYLIST.add('http://cdn.gravlab.net/sparse/v1d30/2013/nightskyHLS/Lapse2.m3u8', listitem)
+
             for i in range(0,len(highlights)-1):
-                #highlights.append([clip_url,headline,icon])                                
+                #highlights.append([clip_url,headline,icon])                                                
                 listitem = xbmcgui.ListItem(highlights[i][1], thumbnailImage=highlights[i][2])                
                 listitem.setInfo( type="Video", infoLabels={ "Title": highlights[i][1] })            
                 HIGHLIGHT_PLAYLIST.add(createHighlightStream(highlights[i][0], bandwidth), listitem)
 
-            #-----------------------------------------------------------
-            #Hack to get around resolved url wanting a single list item
-            #-----------------------------------------------------------
-            #Satisify the resolved url call  
-            listitem = xbmcgui.ListItem(path='') 
-            xbmcplugin.setResolvedUrl(handle=addon_handle, succeeded=False, listitem=listitem)          
-            xbmc.sleep(5)
-            #Close the error dialog
-            xbmc.executebuiltin('Dialog.Close(all,true)')
-            #xbmc.sleep(500)
-            #-------------------------------------------------- 
-            #Play highlights        
-            #xbmc.Player().play(HIGHLIGHT_PLAYLIST)
+            
     else:        
         #xbmcplugin.setResolvedUrl(addon_handle, False, listitem)
         xbmc.executebuiltin('Dialog.Close(all,true)')
@@ -488,7 +482,7 @@ def getGamesForDate(stream_date):
     for gid, junk in match:        
         pDialog.update(perc_increments, message='Downloading '+gid)        
         try:
-            recap, condensed = getHighlightLinks(None, stream_date, gid)   
+            recap, condensed, highlights = getHighlightLinks(None, stream_date, gid)   
            
             if first_time_thru and QUALITY == 'Always Ask':                
                 bandwidth = getStreamQuality(str(recap['url']))

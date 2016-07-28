@@ -87,9 +87,6 @@ UA_ATBAT = 'At Bat/13268 CFNetwork/758.2.8 Darwin/15.0.0'
 #Playlists
 RECAP_PLAYLIST = xbmc.PlayList(0)
 EXTENDED_PLAYLIST = xbmc.PlayList(1)
-#HIGHLIGHT_PLAYLIST = xbmc.PlayList(2)
-
-
 
 
 

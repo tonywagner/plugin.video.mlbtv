@@ -1,3 +1,7 @@
+2016.7.28
+- Fixed view all recap / condensed for date
+- Fixed play all highlights skipping first highlight video
+
 2016.7.13
 - Fixed error loading MLB plus games
 - Fixed error when single or no games for day (thanks bontibon)
