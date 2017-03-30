@@ -1,3 +1,8 @@
+2017.3.7
+- Bumped xbmc python version
+- Converted xml strings file to po file
+- Code clean up
+
 2016.7.28
 - Fixed view all recap / condensed for date
 - Fixed play all highlights skipping first highlight video

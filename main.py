@@ -11,8 +11,7 @@ def categories():
 def todaysGames(game_day):    
     if game_day == None:
         game_day = localToEastern()
-
-    print "GAME DAY = " + str(game_day)            
+           
     settings.setSetting(id='stream_date', value=game_day)    
 
     display_day = stringToDate(game_day, "%Y-%m-%d")
@@ -28,8 +27,6 @@ def todaysGames(game_day):
     #addPlaylist(date_display,display_day,'/playhighlights',999,ICON,FANART)
 
     url = 'http://gdx.mlb.com/components/game/mlb/'+url_game_day+'/grid_ce.json'    
-    print "URL GAME DAY"
-    print url
 
     req = urllib2.Request(url)    
     req.add_header('Connection', 'close')
@@ -40,8 +37,8 @@ def todaysGames(game_day):
         json_source = json.load(response)                           
         response.close()                
     except HTTPError as e:
-        print 'The server couldn\'t fulfill the request.'
-        print 'Error code: ', e.code          
+        xbmc.log('The server couldn\'t fulfill the request.')
+        xbmc.log('Error code: ', e.code)
         sys.exit()
 
        
@@ -51,11 +48,11 @@ def todaysGames(game_day):
     EXTENDED_PLAYLIST.clear()
 
     try:
-            itr = json_source['data']['games']['game']
-            if type(itr) is not list:
-                itr = [itr]
-            for game in itr:
-                createGameListItem(game, game_day)
+        itr = json_source['data']['games']['game']            
+        if not isinstance(itr, list):
+            itr = [itr]
+        for game in itr:
+            createGameListItem(game, game_day)
     except:
         # if there are no games on this date
         pass
@@ -93,8 +90,7 @@ def createGameListItem(game, game_day):
 
     game_time = ''
     if game['status'] == 'Preview':
-        game_time = game_day+' '+game['event_time']
-        print game_time
+        game_time = game_day+' '+game['event_time']        
         game_time = stringToDate(game_time, "%Y-%m-%d %I:%M %p")        
         game_time = easternToLocal(game_time)
        
@@ -145,21 +141,10 @@ def createGameListItem(game, game_day):
         
         
     event_id = str(game['calendar_event_id'])
-
-    #live_video = game['gameLiveVideo']    
-    print away_team + ' ' + home_team
-    '''
-    epg = None
-    try:
-        epg = json.dumps(game['game_media']['homebase']['media'])
-    except:
-        pass
-    '''
     gid = game['id']
 
     live_feeds = 0
-    archive_feeds = 0
-    #teams_stream = game['away_name_abbrev'] + game['home_name_abbrev']
+    archive_feeds = 0    
     teams_stream = game['away_code'] + game['home_code']
     stream_date = str(game_day)
 
@@ -191,7 +176,7 @@ def createGameListItem(game, game_day):
     #Set audio/video info based on stream quality setting
     audio_info, video_info = getAudioVideoInfo()
     #'duration':length
-    info = {'plot':desc,'tvshowtitle':'MLB','title':title,'originaltitle':title,'aired':game_day,'genre':'Sports'}
+    info = {'plot':desc,'tvshowtitle':'MLB','title':title,'originaltitle':title,'aired':game_day,'genre':LOCAL_STRING(700),'mediatype':'video'}
 
     #Create Playlist for the days recaps and condensed
     '''
@@ -227,8 +212,8 @@ def streamSelect(event_id, gid, teams_stream, stream_date):
         json_source = json.load(response)                           
         response.close()                
     except HTTPError as e:
-        print 'The server couldn\'t fulfill the request.'
-        print 'Error code: ', e.code          
+        xbmc.log('The server couldn\'t fulfill the request.')
+        xbmc.log('Error code: ', e.code)
         sys.exit()
 
     #Find selected game
@@ -382,13 +367,10 @@ def streamSelect(event_id, gid, teams_stream, stream_date):
             #getHighlightLinks(teams_stream, stream_date)                
             play_highlights = 1
                                 
-    
-    print "STREAM BEFORE PLAY"
-    print stream_url    
+        
     listitem = xbmcgui.ListItem(path=stream_url)        
     
-    if '.m3u8' in stream_url:            
-        #listitem.setMimeType("application/x-mpegURL")        
+    if '.m3u8' in stream_url:                
         xbmcplugin.setResolvedUrl(handle=addon_handle, succeeded=True, listitem=listitem)
         
     elif play_highlights == 1:    
@@ -401,8 +383,7 @@ def streamSelect(event_id, gid, teams_stream, stream_date):
             
 
         dialog = xbmcgui.Dialog()         
-        a = dialog.select('Choose Highlight', highlight_name)             
-        #print "dialog select value " + str(a)
+        a = dialog.select('Choose Highlight', highlight_name)                     
         if a > 0:
             #listitem = xbmcgui.ListItem(thumbnailImage=highlights[a-1][2], path=highlights[a-1][0])                
             listitem = xbmcgui.ListItem(path=createHighlightStream(highlight_url[a], bandwidth))                
@@ -447,9 +428,7 @@ def getGamesForDate(stream_date):
     month = stream_date_new.strftime("%m")
     day = stream_date_new.strftime("%d")
     
-    url = 'http://gdx.mlb.com/components/game/mlb/year_'+year+'/month_'+month+'/day_'+day+'/'
-    print url
-
+    url = 'http://gdx.mlb.com/components/game/mlb/year_'+year+'/month_'+month+'/day_'+day+'/'    
     req = urllib2.Request(url)    
     req.add_header('Connection', 'close')
     req.add_header('User-Agent', UA_IPAD)
@@ -459,8 +438,8 @@ def getGamesForDate(stream_date):
         html_data = response.read()                                 
         response.close()                
     except HTTPError as e:
-        print 'The server couldn\'t fulfill the request.'
-        print 'Error code: ', e.code          
+        xbmc.log('The server couldn\'t fulfill the request.')
+        xbmc.log('Error code: ', e.code)
         sys.exit()
     
     #<li><a href="gid_2016_03_13_arimlb_chamlb_1/"> gid_2016_03_13_arimlb_chamlb_1/</a></li>
@@ -516,8 +495,7 @@ def createHighlightStream(url, bandwidth):
 
 def getHighlightLinks(teams_stream, stream_date, gid=None, bandwidth=None):
     #global HIGHLIGHT_PLAYLIST
-    #HIGHLIGHT_PLAYLIST.clear()  
-    print stream_date
+    #HIGHLIGHT_PLAYLIST.clear()      
     stream_date = stringToDate(stream_date, "%Y-%m-%d")                
     year = stream_date.strftime("%Y")
     month = stream_date.strftime("%m")
@@ -529,7 +507,6 @@ def getHighlightLinks(teams_stream, stream_date, gid=None, bandwidth=None):
         url = 'http://gdx.mlb.com/components/game/mlb/year_'+year+'/month_'+month+'/day_'+day+'/gid_'+year+'_'+month+'_'+day+'_'+away+'mlb_'+home+'mlb_1/media/mobile.xml'
     else:
         url = 'http://gdx.mlb.com/components/game/mlb/year_'+year+'/month_'+month+'/day_'+day+'/gid_'+gid+'/media/mobile.xml'
-    print url
 
     req = urllib2.Request(url)    
     req.add_header('Connection', 'close')
@@ -539,8 +516,8 @@ def getHighlightLinks(teams_stream, stream_date, gid=None, bandwidth=None):
         xml_data = response.read()                                 
         response.close()                
     except HTTPError as e:
-        print 'The server couldn\'t fulfill the request.'
-        print 'Error code: ', e.code          
+        xbmc.log('The server couldn\'t fulfill the request.')
+        xbmc.log('Error code: ', e.code)
         sys.exit()
     
     match = re.compile('<media id="(.+?)"(.+?)<headline>(.+?)</headline>(.+?)<thumb type="22">(.+?)</thumb>(.+?)<url playback-scenario="HTTP_CLOUD_TABLET_60">(.+?)</url>',re.DOTALL).findall(xml_data)       
@@ -550,8 +527,7 @@ def getHighlightLinks(teams_stream, stream_date, gid=None, bandwidth=None):
     condensed = {}
     highlights = []
 
-    for media_id, media_tag, headline, junk1, icon, junk2, clip_url in match:  
-        print clip_url
+    for media_id, media_tag, headline, junk1, icon, junk2, clip_url in match:          
         if 'media-type="T"' in media_tag:
             #if bandwidth != '' and int(bandwidth) < 4500:
             #clip_url = clip_url.replace('master_tablet_60.m3u8', 'asset_'+bandwidth+'K.m3u8')
@@ -600,8 +576,7 @@ def createFullGameStream(stream_url, media_auth, media_state):
     #cj = cookielib.LWPCookieJar()
     #cj.load(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'),ignore_discard=True)
     stream_url = stream_url + '|User-Agent='+UA_PS4+'&Cookie='+media_auth
-
-    print "STREAM URL: "+stream_url
+    
     return stream_url
     
 
@@ -622,10 +597,7 @@ def fetchStream(content_id,event_id,playback_scenario):
         at_least_one_expired = False
         num_cookies = 0
         for cookie in cj:                        
-            num_cookies += 1
-            print cookie.name
-            print cookie.expires
-            print cookie.is_expired()
+            num_cookies += 1            
             if cookie.is_expired():
                 at_least_one_expired = True
                 break
@@ -647,8 +619,7 @@ def fetchStream(content_id,event_id,playback_scenario):
 
     cj = cookielib.LWPCookieJar(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'))     
     cj.load(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'),ignore_discard=True)
-    for cookie in cj: 
-        print cookie           
+    for cookie in cj:         
         if cookie.name == "ipid":
             identity_point_id = cookie.value
         elif cookie.name == "fprt":
@@ -662,7 +633,20 @@ def fetchStream(content_id,event_id,playback_scenario):
     #Reload Cookies
     cj = cookielib.LWPCookieJar(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'))     
     cj.load(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'),ignore_discard=True)
-    opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))        
+
+    if PROXY_ENABLED != 'true':
+        opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))        
+    else:
+        proxy_url = 'http://'+PROXY_SERVER+':'+PROXY_PORT
+        proxy_support = urllib2.ProxyHandler({ 'http': proxy_url, 'https': proxy_url })
+        if PROXY_USER != '' and PROXY_PWD != '':
+            auth_handler = urllib2.ProxyBasicAuthHandler()
+            auth_handler.add_password(None, proxy_url, PROXY_USER, PROXY_PWD)
+            opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj), proxy_support, auth_handler)
+        else:
+            opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj), proxy_support)
+
+        urllib2.install_opener(opener)
 
     if session_key == '':
         return stream_url, media_auth
@@ -672,36 +656,8 @@ def fetchStream(content_id,event_id,playback_scenario):
         ok = dialog.ok('Game Blacked Out', msg) 
         return stream_url, media_auth
 
-   
-    #epoch_time_now = str(int(round(time.time()*1000)))
-
-    #-------------------------
-    #Playback Scenario's
-    #-------------------------
-    '''
-    HTTP_CLOUD_WIRED
-    HTTP_CLOUD_WIRED_ADS
-    HTTP_CLOUD_WIRED_IRDETO
-    HTTP_CLOUD_WIRED_WEB
-    HTTP_CLOUD_TABLET
-    FMS_CLOUD
-    HTTP_CLOUD_WIRED_60
-    HTTP_CLOUD_WIRED_ADS_60
-    HTTP_CLOUD_WIRED_IRDETO_60
-    FLASH_500K_400X224
-    HTTP_CLOUD_AUDIO
-    AUDIO_FMS_32K
-    HTTP_CLOUD_AUDIO_TS
-
-    PS4 Calls
-    "MF": "https://mlb-ws-mf.media.mlb.com/pubajaxws/bamrest/MediaService2_0/op-findUserVerifiedEvent/v-2.3?",
-    "mfPlay": "playbackScenario={playbackScenario}&platform={platform}&contentId={contentID}&identityPointId={identityPointID}&fingerprint={fingerprint}&format=json&auth=cookie",
-    "mfCatalog": "platform={platform}&subject=LIVE_EVENT_COVERAGE&format=json&eventId={eventId}&fingerprint={fingerprint}&identityPointId={identityPointId}&auth=cookie",
-    '''
-
-    #https://mlb-ws.mlb.com/pubajaxws/bamrest/MediaService2_0/op-findUserVerifiedEvent/v-2.3?identityPointId=31998790&fingerprint=dUVQMTF5bjRrd1N4Rnp0NlVTUk5wR1NMV0E4PXwxNDU3Mzc0NjI0MDU1fGlwdD1lbWFpbC1wYXNzd29yZA==&eventId=14-469489-2016-03-07&platform=WIN8&playbackScenario=HTTP_CLOUD_AUDIO&contentId=546192183&sessionKey=&subject=LIVE_EVENT_COVERAGE
-    url = 'https://mlb-ws-mf.media.mlb.com/pubajaxws/bamrest/MediaService2_0/op-findUserVerifiedEvent/v-2.3'
-    #url = 'https://mlb-ws.mlb.com/pubajaxws/bamrest/MediaService2_0/op-findUserVerifiedEvent/v-2.3'
+      
+    url = 'https://mlb-ws-mf.media.mlb.com/pubajaxws/bamrest/MediaService2_0/op-findUserVerifiedEvent/v-2.3'   
     url = url + '?identityPointId='+identity_point_id
     url = url + '&fingerprint='+fingerprint
     url = url + '&contentId='+content_id    
@@ -710,9 +666,7 @@ def fetchStream(content_id,event_id,playback_scenario):
     url = url + '&subject=LIVE_EVENT_COVERAGE'
     url = url + '&sessionKey='+urllib.quote_plus(session_key)
     url = url + '&platform=PS4'
-    url = url + '&format=json'
-    #url = url + '&frameworkURL=https%3A%2F%2Fmlb-ws-mf.media.mlb.com&frameworkEndPoint=%2Fpubajaxws%2Fbamrest%2FMediaService2_0%2Fop-findUserVerifiedEvent%2Fv-2.3'
-    #url = url + '&_='+epoch_time_now
+    url = url + '&format=json'    
     req = urllib2.Request(url)       
     req.add_header("Accept", "*/*")
     req.add_header("Accept-Encoding", "deflate")
@@ -727,8 +681,7 @@ def fetchStream(content_id,event_id,playback_scenario):
     
 
     if json_source['status_code'] == 1:
-        uv_media_item = json_source['user_verified_event'][0]['user_verified_content'][0]['user_verified_media_item'][0]
-        print str(uv_media_item ['blackout_status']).upper()
+        uv_media_item = json_source['user_verified_event'][0]['user_verified_content'][0]['user_verified_media_item'][0]        
         if 'BLACKOUT' in str(uv_media_item ['blackout_status']).upper():            
             msg = "We're sorry.  We have determined that you are blacked out of watching the game you selected due to Major League Baseball exclusivities."
             #try:
@@ -813,8 +766,7 @@ def getSessionKey(content_id,event_id,identity_point_id,fingerprint):
         response = opener.open(req)
         xml_data = response.read()
         response.close()
-        
-        print "REQUESTED SESSION KEY"
+                
         session_key = find(xml_data,'<session-key>','</session-key>')
         settings.setSetting(id='session_key', value=session_key)
 
@@ -919,9 +871,9 @@ def login():
             else:
                 cj.save(ignore_discard=True);
         except HTTPError as e:
-            print 'The server couldn\'t fulfill the request.'
-            print 'Error code: ', e.code    
-            print url   
+            xbmc.log('The server couldn\'t fulfill the request.')
+            xbmc.log('Error code: ', e.code)
+            xbmc.log(url)
             
             #Error 401 for invalid login
             if e.code == 401:
@@ -987,13 +939,6 @@ try:
 except:
     pass
 
-
-print "Mode: "+str(mode)
-#print "URL: "+str(url)
-print "Name: "+str(name)
-
-
-
 if mode==None:        
     categories()  
 
@@ -1019,8 +964,7 @@ elif mode == 200:
     #Goto Date
     search_txt = ''
     dialog = xbmcgui.Dialog()
-    game_day = dialog.input('Enter date (yyyy-mm-dd)', type=xbmcgui.INPUT_ALPHANUM)
-    print game_day
+    game_day = dialog.input('Enter date (yyyy-mm-dd)', type=xbmcgui.INPUT_ALPHANUM)    
     mat=re.match('(\d{4})-(\d{2})-(\d{2})$', game_day)        
     if mat is not None:    
         todaysGames(game_day)
@@ -1044,14 +988,6 @@ elif mode == 900:
 
 elif mode == 999:
     sys.exit()
-
-print mode
-if mode==100 or mode==101 or mode==104 or mode==105 or mode==200 or mode==300 or mode==500: 
-   setViewMode()
-elif mode==None:
-    getViewMode()
-    
-print "My view mode " + VIEW_MODE
 
 if mode == 100:
     xbmcplugin.endOfDirectory(addon_handle, cacheToDisc=False)
