@@ -47,6 +47,7 @@ def todaysGames(game_day):
     RECAP_PLAYLIST.clear()
     EXTENDED_PLAYLIST.clear()
 
+    
     try:
         itr = json_source['data']['games']['game']            
         if not isinstance(itr, list):
@@ -62,7 +63,8 @@ def todaysGames(game_day):
 
 
 def createGameListItem(game, game_day):
-    icon = getGameIcon(game['home_team_id'],game['away_team_id'])
+    #icon = getGameIcon(game['home_team_id'],game['away_team_id'])
+    icon = ICON
     #http://mlb.mlb.com/mlb/images/devices/ballpark/1920x1080/2681.jpg
     #B&W
     #fanart = 'http://mlb.mlb.com/mlb/images/devices/ballpark/1920x1080/'+game['venue_id']+'.jpg'   
@@ -179,7 +181,7 @@ def createGameListItem(game, game_day):
     info = {'plot':desc,'tvshowtitle':'MLB','title':title,'originaltitle':title,'aired':game_day,'genre':LOCAL_STRING(700),'mediatype':'video'}
 
     #Create Playlist for the days recaps and condensed
-    '''
+    
     try:         
         recap_url, condensed_url = getHighlightLinks(teams_stream, stream_date)
         global RECAP_PLAYLIST            
@@ -193,7 +195,7 @@ def createGameListItem(game, game_day):
         EXTENDED_PLAYLIST.add(condensed_url, listitem)
     except:
         pass
-    '''
+    
     addStream(name,title,event_id,gid,icon,fanart,info,video_info,audio_info,teams_stream,stream_date)
 
 

@@ -12,7 +12,7 @@ import math
 from bs4 import BeautifulSoup 
 from datetime import date, datetime, timedelta
 from urllib2 import URLError, HTTPError
-from PIL import Image
+#from PIL import Image
 from cStringIO import StringIO
 
 
@@ -65,10 +65,10 @@ FREE = 'FF43CD80'
 
 
 #Images
-ICON = os.path.join(ROOTDIR,"/icon.png")
-FANART = os.path.join(ROOTDIR,"/fanart.jpg")
-PREV_ICON = os.path.join(ROOTDIR,"/icon.png")
-NEXT_ICON = os.path.join(ROOTDIR,"/icon.png")
+ICON = os.path.join(ROOTDIR,"icon.png")
+FANART = os.path.join(ROOTDIR,"fanart.jpg")
+PREV_ICON = os.path.join(ROOTDIR,"icon.png")
+NEXT_ICON = os.path.join(ROOTDIR,"icon.png")
 
 if SINGLE_TEAM == 'true':
     MASTER_FILE_TYPE = 'master_wired.m3u8'
@@ -103,7 +103,8 @@ def find(source,start_str,end_str):
 
 def getGameIcon(home,away):
     #Check if game image already exists
-    image_path = ROOTDIR+'/resources/images/'+away+'vs'+home+'.png'
+    #image_path = ROOTDIR+'/resources/images/'+away+'vs'+home+'.png'
+    image_path = os.path.join(ROOTDIR,'resources/images/'+away+'vs'+home+'.png')
     file_name = os.path.join(image_path)
     if not os.path.isfile(file_name): 
         try:
@@ -119,14 +120,14 @@ def createGameIcon(home,away,image_path):
     bg = Image.new('RGB', (500,250), (0,0,0)) 
     #http://mlb.mlb.com/mlb/images/devices/240x240/110.png
     #img_file = urllib.urlopen('http://mlb.mlb.com/mlb/images/devices/76x76/'+home+'.png ')
-    img_file = urllib.urlopen('http://mlb.mlb.com/mlb/images/devices/240x240/'+home+'.png ')
+    img_file = urllib.urlopen('http://mlb.mlb.com/mlb/images/devices/240x240/'+home+'.png')
     im = StringIO(img_file.read())
     home_image = Image.open(im)
     #bg.paste(home_image, (267,74), home_image)
     bg.paste(home_image, (255,5), home_image)
 
     #img_file = urllib.urlopen('http://mlb.mlb.com/mlb/images/devices/76x76/'+away+'.png ')
-    img_file = urllib.urlopen('http://mlb.mlb.com/mlb/images/devices/240x240/'+away+'.png ')
+    img_file = urllib.urlopen('http://mlb.mlb.com/mlb/images/devices/240x240/'+away+'.png')
     im = StringIO(img_file.read())
     away_image = Image.open(im)
     #bg.paste(away_image, (57,74), away_image)    
