@@ -559,13 +559,6 @@ def createFullGameStream(stream_url, media_auth, media_state):
     if QUALITY == 'Always Ask':
         bandwidth = getStreamQuality(stream_url)
 
-
-    #level3 
-    #http://mlblive-l3c.mlb.com/ls01/mlbam/2017/04/05/MLB_GAME_VIDEO_PITBOS_VISIT_20170405_1490808622168/5000K/5000_slide_fwv2.m3u8
-    #http://mlblive-akc.mlb.com/ls01/mlbam/2017/04/05/MLB_GAME_VIDEO_PITBOS_VISIT_20170405_1490808622168/5000K/5000_slide_fwv2.m3u8
-    #Akami
-    #http://mlblive-akc.mlb.com/ls01/mlbam/2017/04/05/MLB_GAME_VIDEO_MIAWAS_HOME_20170405_1490808027476/3500K/3500_slide_fwv2.m3u8 HTTP/1.1
-
     #Only set bandwidth if it's explicitly set
     if bandwidth != '':
         if media_state == 'MEDIA_ARCHIVE':                
@@ -584,7 +577,7 @@ def createFullGameStream(stream_url, media_auth, media_state):
         stream_url = stream_url.replace(akc_url,l3c_url)
 
     #stream_url = 'http://mlblive-akc.mlb.com/ls01/mlbam/2017/04/05/MLB_GAME_VIDEO_PITBOS_VISIT_20170405_1490808622168/5000K/5000_slide_fwv2.m3u8'
-    stream_url = stream_url + '|User-Agent='+UA_PS4+'&Cookie='+media_auth
+    stream_url = stream_url + '|User-Agent='+UA_IPAD+'&Cookie='+media_auth
     
     return stream_url
 
