@@ -563,10 +563,12 @@ def createFullGameStream(stream_url, media_auth, media_state):
     if bandwidth != '':
         if media_state == 'MEDIA_ARCHIVE':                
             #ARCHIVE
-            stream_url = stream_url.replace(MASTER_FILE_TYPE, bandwidth+'K/'+bandwidth+'_complete_fwv2-trimmed.m3u8') 
+            #stream_url = stream_url.replace(MASTER_FILE_TYPE, bandwidth+'K/'+bandwidth+'_complete_fwv2-trimmed.m3u8') 
+            stream_url = stream_url.replace(MASTER_FILE_TYPE, bandwidth+'K/'+bandwidth+'_complete-trimmed.m3u8')
         elif media_state == 'MEDIA_ON':
             #LIVE   
-            stream_url = stream_url.replace(MASTER_FILE_TYPE, bandwidth+'K/'+bandwidth+'_slide_fwv2.m3u8') 
+            #stream_url = stream_url.replace(MASTER_FILE_TYPE, bandwidth+'K/'+bandwidth+'_slide_fwv2.m3u8') 
+            stream_url = stream_url.replace(MASTER_FILE_TYPE, bandwidth+'K/'+bandwidth+'_complete.m3u8')
 
     #CDN
     akc_url = 'akc.mlb.com'
@@ -575,9 +577,9 @@ def createFullGameStream(stream_url, media_auth, media_state):
         stream_url = stream_url.replace(l3c_url,akc_url)
     elif CDN == 'Level 3' and  l3c_url not in stream_url:
         stream_url = stream_url.replace(akc_url,l3c_url)
-
-    #stream_url = 'http://mlblive-akc.mlb.com/ls01/mlbam/2017/04/05/MLB_GAME_VIDEO_PITBOS_VISIT_20170405_1490808622168/5000K/5000_slide_fwv2.m3u8'
-    stream_url = stream_url + '|User-Agent='+UA_IPAD+'&Cookie='+media_auth
+    
+    #stream_url = stream_url + '|User-Agent='+UA_IPAD+'&Cookie='+media_auth
+    stream_url = stream_url + '|User-Agent='+UA_PS4+'&Cookie='+media_auth
     
     return stream_url
 
