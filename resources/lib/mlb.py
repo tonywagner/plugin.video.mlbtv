@@ -8,14 +8,14 @@ def categories():
     addDir('Goto Date', 200, ICON, FANART)
 
 
-def todaysGames(game_day):
-    if game_day == None:
+def todays_games(game_day):
+    if game_day is None:
         game_day = localToEastern()
 
     settings.setSetting(id='stream_date', value=game_day)
 
     display_day = stringToDate(game_day, "%Y-%m-%d")
-    url_game_day = display_day.strftime('year_%Y/month_%m/day_%d')
+    #url_game_day = display_day.strftime('year_%Y/month_%m/day_%d')
     prev_day = display_day - timedelta(days=1)
 
     addDir('[B]<< Previous Day[/B]', 101, PREV_ICON, FANART, prev_day.strftime("%Y-%m-%d"))
@@ -26,8 +26,14 @@ def todaysGames(game_day):
 
     # addPlaylist(date_display,display_day,'/playhighlights',999,ICON,FANART)
 
-    url = 'http://gdx.mlb.com/components/game/mlb/' + url_game_day + '/grid_ce.json'
+    #url = 'http://gdx.mlb.com/components/game/mlb/' + url_game_day + '/grid_ce.json'
+    url = 'https://statsapi.mlb.com/api/v1/schedule'
+    url += '?hydrate=broadcasts(all),game(content(all)),linescore'
+    url += '&sportId=1,51'
+    url += '&date=' + game_day
 
+
+    """
     req = urllib2.Request(url)
     req.add_header('Connection', 'close')
     req.add_header('User-Agent', UA_PS4)
@@ -40,56 +46,57 @@ def todaysGames(game_day):
         xbmc.log('The server couldn\'t fulfill the request.')
         xbmc.log('Error code: ', e.code)
         sys.exit()
+    """
+    headers = {
+        'User-Agent': UA_ANDROID
+    }
+    r = requests.get(url,headers=headers, verify=VERIFY)
+    json_source = r.json()
 
     global RECAP_PLAYLIST
     global EXTENDED_PLAYLIST
     RECAP_PLAYLIST.clear()
     EXTENDED_PLAYLIST.clear()
 
-    try:
-        itr = json_source['data']['games']['game']
-        if not isinstance(itr, list):
-            itr = [itr]
-        for game in itr:
-            createGameListItem(game, game_day)
-    except:
-        # if there are no games on this date
-        pass
+    for game in json_source['dates'][0]['games']:
+        create_game_listitem(game, game_day)
 
     next_day = display_day + timedelta(days=1)
     addDir('[B]Next Day >>[/B]', 101, NEXT_ICON, FANART, next_day.strftime("%Y-%m-%d"))
 
 
-def createGameListItem(game, game_day):
+def create_game_listitem(game, game_day):
     # icon = getGameIcon(game['home_team_id'],game['away_team_id'])
     icon = ICON
     # http://mlb.mlb.com/mlb/images/devices/ballpark/1920x1080/2681.jpg
     # B&W
     # fanart = 'http://mlb.mlb.com/mlb/images/devices/ballpark/1920x1080/'+game['venue_id']+'.jpg'
     # Color
-    fanart = 'http://www.mlb.com/mlb/images/devices/ballpark/1920x1080/color/' + game['venue_id'] + '.jpg'
+    fanart = 'http://www.mlb.com/mlb/images/devices/ballpark/1920x1080/color/' + str(game['venue']['id']) + '.jpg'
+
+    xbmc.log(str(game['gamePk']))
 
     if TEAM_NAMES == "0":
-        away_team = game['away_team_name']
-        home_team = game['home_team_name']
+        away_team = game['teams']['away']['team']['name']
+        home_team = game['teams']['home']['team']['name']
     else:
-        away_team = game['away_name_abbrev']
-        home_team = game['home_name_abbrev']
+        away_team = game['teams']['away']['team']['abbreviation']
+        home_team = game['teams']['home']['team']['abbreviation']
 
     fav_game = False
 
-    if game['away_team_name'].encode('utf-8') in FAV_TEAM:
+    if game['teams']['away']['team']['name'].encode('utf-8') in FAV_TEAM:
         fav_game = True
         away_team = colorString(away_team, getFavTeamColor())
 
-    if game['home_team_name'].encode('utf-8') in FAV_TEAM:
+    if game['teams']['home']['team']['name'].encode('utf-8') in FAV_TEAM:
         fav_game = True
         home_team = colorString(home_team, getFavTeamColor())
 
     game_time = ''
-    if game['status'] == 'Preview':
-        game_time = game_day + ' ' + game['event_time']
-        game_time = stringToDate(game_time, "%Y-%m-%d %I:%M %p")
+    if game['status']['abstractGameState'] == 'Preview':
+        game_time = game['gameDate']
+        game_time = stringToDate(game_time, "%Y-%m-%dT%H:%M:%SZ")
         game_time = easternToLocal(game_time)
 
         if TIME_FORMAT == '0':
@@ -100,13 +107,13 @@ def createGameListItem(game, game_day):
         game_time = colorString(game_time, UPCOMING)
 
     else:
-        game_time = game['status']
+        game_time = game['status']['abstractGameState']
 
         if game_time == 'Final':
             game_time = colorString(game_time, FINAL)
 
         elif 'In Progress' in game_time:
-            if game['top_inning'] == 'Y':
+            if game['linescore']['isTopInning']:
                 # up triangle
                 # top_bottom = u"\u25B2"
                 top_bottom = "T"
@@ -115,7 +122,8 @@ def createGameListItem(game, game_day):
                 # top_bottom = u"\u25BC"
                 top_bottom = "B"
 
-            inning = game['inning']
+            """
+            inning = game['linescore']['currentInning']
             if int(inning) % 10 == 1 and int(inning) != 11:
                 ordinal_indicator = "st"
             elif int(inning) % 10 == 2 and int(inning) != 12:
@@ -124,8 +132,9 @@ def createGameListItem(game, game_day):
                 ordinal_indicator = "rd"
             else:
                 ordinal_indicator = "th"
-
-            game_time = top_bottom + ' ' + inning + ordinal_indicator
+            """
+            inning = game['linescore']['currentInningOrdinal']
+            game_time = top_bottom + ' ' + inning
 
             if int(inning) >= 9:
                 color = CRITICAL
@@ -137,21 +146,24 @@ def createGameListItem(game, game_day):
         else:
             game_time = colorString(game_time, LIVE)
 
-    event_id = str(game['calendar_event_id'])
-    gid = game['id']
+    #event_id = str(game['calendar_event_id'])
+    event_id = 'junk'
+    #gid = game['id']
+    gid = 'junk'
 
     live_feeds = 0
     archive_feeds = 0
-    teams_stream = game['away_code'] + game['home_code']
+    #teams_stream = game['away_code'] + game['home_code']
+    teams_stream = 'junk'
     stream_date = str(game_day)
 
     desc = ''
     hide_spoilers = 0
-    if NO_SPOILERS == '1' or (NO_SPOILERS == '2' and fav_game) or (NO_SPOILERS == '3' and game_day == localToEastern()) or (NO_SPOILERS == '4' and game_day < localToEastern()) or game['status'] == 'Preview':
+    if NO_SPOILERS == '1' or (NO_SPOILERS == '2' and fav_game) or (NO_SPOILERS == '3' and game_day == localToEastern()) or (NO_SPOILERS == '4' and game_day < localToEastern()) or game['status']['abstractGameState'] == 'Preview':
         name = game_time + ' ' + away_team + ' at ' + home_team
         hide_spoilers = 1
     else:
-        name = game_time + ' ' + away_team + ' ' + colorString(str(game['away_score']), SCORE_COLOR) + ' at ' + home_team + ' ' + colorString(str(game['home_score']), SCORE_COLOR)
+        name = game_time + ' ' + away_team + ' ' + colorString(str(game['linescore']['teams']['away']['runs']), SCORE_COLOR) + ' at ' + home_team + ' ' + colorString(str(game['linescore']['teams']['home']['runs']), SCORE_COLOR)
 
     name = name.encode('utf-8')
     if fav_game:
@@ -162,11 +174,12 @@ def createGameListItem(game, game_day):
 
     # Label free game of the day if applicable
     try:
-        if game['game_media']['homebase']['media'][0]['free'] == "ALL":
+        if game['content']['media']['freeGame']:
             # and game_day >= localToEastern():
             name = colorString(name, FREE)
     except:
         pass
+
 
     # Set audio/video info based on stream quality setting
     audio_info, video_info = getAudioVideoInfo()
@@ -488,7 +501,7 @@ def getHighlightLinks(teams_stream, stream_date, gid=None, bandwidth=None):
     month = stream_date.strftime("%m")
     day = stream_date.strftime("%d")
 
-    if gid == None:
+    if gid is None:
         away = teams_stream[:3].lower()
         home = teams_stream[3:].lower()
         url = 'http://gdx.mlb.com/components/game/mlb/year_' + year + '/month_' + month + '/day_' + day + '/gid_' + year + '_' + month + '_' + day + '_' + away + 'mlb_' + home + 'mlb_1/media/mobile.xml'
@@ -788,7 +801,7 @@ def myTeamsGames():
         for game_row in match:
 
             for game in date['games']:
-                createGameListItem(game, date['date'])
+                create_game_listitem(game, date['date'])
 
 
     else:

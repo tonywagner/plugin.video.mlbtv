@@ -4,7 +4,7 @@ import xbmc, xbmcplugin, xbmcgui, xbmcaddon
 import re, os, time
 import calendar
 import pytz
-import urllib, urllib2
+import urllib, urllib2, requests
 import json
 import cookielib
 import time
@@ -85,11 +85,13 @@ UA_IPAD = 'AppleCoreMedia/1.0 ( iPad; compatible; 3ivx HLS Engine/2.0.0.382; Win
 UA_PC = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.97 Safari/537.36'         
 UA_PS4 = 'PS4Application libhttp/1.000 (PS4) libhttp/3.15 (PlayStation 4)'
 UA_ATBAT = 'At Bat/13268 CFNetwork/758.2.8 Darwin/15.0.0'
+UA_ANDROID = 'okhttp/3.9.0'
 
 #Playlists
 RECAP_PLAYLIST = xbmc.PlayList(0)
 EXTENDED_PLAYLIST = xbmc.PlayList(1)
 
+VERIFY = False
 
 
 def find(source,start_str,end_str):    
@@ -555,4 +557,30 @@ def getBlackoutLiftTime(url):
          local_lift_time = local_lift_time.strftime('%H:%M')
     
     return minutes_until_lift, local_lift_time
-    
+
+
+def save_cookies(cookiejar):
+    cookie_file = os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp')
+    cj = cookielib.LWPCookieJar()
+    try:
+        cj.load(cookie_file,ignore_discard=True)
+    except:
+        pass
+    for c in cookiejar:
+        args = dict(vars(c).items())
+        args['rest'] = args['_rest']
+        del args['_rest']
+        c = cookielib.Cookie(**args)
+        cj.set_cookie(c)
+    cj.save(cookie_file, ignore_discard=True)
+
+
+def load_cookies():
+    cookie_file = os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp')
+    cj = cookielib.LWPCookieJar()
+    try:
+        cj.load(cookie_file, ignore_discard=True)
+    except:
+        pass
+
+    return cj
