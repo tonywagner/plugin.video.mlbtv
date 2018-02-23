@@ -28,7 +28,7 @@ def todays_games(game_day):
 
     #url = 'http://gdx.mlb.com/components/game/mlb/' + url_game_day + '/grid_ce.json'
     url = 'https://statsapi.mlb.com/api/v1/schedule'
-    url += '?hydrate=broadcasts(all),game(content(all)),linescore'
+    url += '?hydrate=broadcasts(all),game(content(all)),linescore,team'
     url += '&sportId=1,51'
     url += '&date=' + game_day
 
@@ -77,8 +77,8 @@ def create_game_listitem(game, game_day):
     xbmc.log(str(game['gamePk']))
 
     if TEAM_NAMES == "0":
-        away_team = game['teams']['away']['team']['name']
-        home_team = game['teams']['home']['team']['name']
+        away_team = game['teams']['away']['team']['teamName']
+        home_team = game['teams']['home']['team']['teamName']
     else:
         away_team = game['teams']['away']['team']['abbreviation']
         home_team = game['teams']['home']['team']['abbreviation']
