@@ -827,47 +827,19 @@ def login():
     if USERNAME != '' and PASSWORD != '':
         settings.setSetting("old_username", USERNAME)
         settings.setSetting("old_password", PASSWORD)
-        cj = cookielib.LWPCookieJar(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'))
-        opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))
 
-        url = 'https://securea.mlb.com/authenticate.do'
-        login_data = 'uri=%2Faccount%2Flogin_register.jsp&registrationAction=identify&emailAddress=' + USERNAME + '&password=' + PASSWORD + '&submitButton='
+        headers = {
+            "SOAPAction": "http://services.bamnetworks.com/registration/identityPoint/identify",
+            "Content-type": "text/xml; charset=utf-8",
+            "User-Agent": "Dalvik/2.1.0 (Linux; U; Android 6.0.1; Hub Build/MHC19J)",
+            "Connection": "Keep-Alive"
+        }
 
-        req = urllib2.Request(url, data=login_data, headers=
-        {"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-         "Accept-Encoding": "gzip, deflate",
-         "Accept-Language": "en-US,en;q=0.8",
-         "Content-Type": "application/x-www-form-urlencoded",
-         "Origin": "https://securea.mlb.com",
-         "Connection": "keep-alive",
-         # "Cookie": "SESSION_1=wf_forwardUrl===http://m.mlb.com/tv/e14-469412-2016-03-02/v545147283/?&media_type=video&clickOrigin=Media%20Grid&team=mlb~wf_flowId===registration.dynaindex~wf_template===mp5default~wf_mediaTypeTemplate===video~stage===3~flowId===registration.dynaindex~forwardUrl===http://m.mlb.com/tv/e14-469412-2016-03-02/v545147283/?&media_type=video&clickOrigin=Media%20Grid&team=mlb;",
-         "Cookie": "SESSION_1=wf_forwardUrl%3D%3D%3Dhttp%3A%2F%2Fm.mlb.com%2Ftv%2Fe14-469412-2016-03-02%2Fv545147283%2F%3F%26media_type%3Dvideo%26clickOrigin%3DMedia%2520Grid%26team%3Dmlb%7Ewf_flowId%3D%3D%3Dregistration.dynaindex%7Ewf_template%3D%3D%3Dmp5default%7Ewf_mediaTypeTemplate%3D%3D%3Dvideo%7Estage%3D%3D%3D3%7EflowId%3D%3D%3Dregistration.dynaindex%7EforwardUrl%3D%3D%3Dhttp%3A%2F%2Fm.mlb.com%2Ftv%2Fe14-469412-2016-03-02%2Fv545147283%2F%3F%26media_type%3Dvideo%26clickOrigin%3DMedia%2520Grid%26team%3Dmlb%3B",
-         "User-Agent": UA_PC})
+        payload = "<?xml version='1.0' encoding='UTF-8'?>"
+        payload += '<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><SOAP-ENV:Body><tns:identityPoint_identify_request xmlns:tns="http://services.bamnetworks.com/registration/types/1.4"><tns:identification type="email-password"><tns:id xsi:nil="true"/><tns:fingerprint xsi:nil="true"/><tns:email><tns:id xsi:nil="true"/><tns:address>' + USERNAME + '</tns:address></tns:email><tns:password>' + PASSWORD + '</tns:password><tns:mobilePhone xsi:nil="true"/><tns:profileProperty xsi:nil="true"/></tns:identification></tns:identityPoint_identify_request></SOAP-ENV:Body></SOAP-ENV:Envelope>'
 
-        try:
-            response = opener.open(req)
-            # if url has not changed the login was not valid.
-            if response.geturl() == url:
-                msg = "Please check that your username and password are correct"
-                dialog = xbmcgui.Dialog()
-                ok = dialog.ok('Invalid Login', msg)
-                sys.exit()
-            else:
-                cj.save(ignore_discard=True);
-        except HTTPError as e:
-            xbmc.log('The server couldn\'t fulfill the request.')
-            xbmc.log('Error code: ', e.code)
-            xbmc.log(url)
-
-            # Error 401 for invalid login
-            if e.code == 401:
-                msg = "Please check that your username and password are correct"
-                dialog = xbmcgui.Dialog()
-                ok = dialog.ok('Invalid Login', msg)
-
-        # response = opener.open(req)
-        # user_data = response.read()
-        response.close()
+        r = requests.post(url, headers=headers, data=payload, verify=VERIFY)
+        save_cookies(r.cookies)
 
 
 def logout():
