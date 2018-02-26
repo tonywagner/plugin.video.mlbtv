@@ -836,7 +836,21 @@ def login():
         }
 
         payload = "<?xml version='1.0' encoding='UTF-8'?>"
-        payload += '<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><SOAP-ENV:Body><tns:identityPoint_identify_request xmlns:tns="http://services.bamnetworks.com/registration/types/1.4"><tns:identification type="email-password"><tns:id xsi:nil="true"/><tns:fingerprint xsi:nil="true"/><tns:email><tns:id xsi:nil="true"/><tns:address>' + USERNAME + '</tns:address></tns:email><tns:password>' + PASSWORD + '</tns:password><tns:mobilePhone xsi:nil="true"/><tns:profileProperty xsi:nil="true"/></tns:identification></tns:identityPoint_identify_request></SOAP-ENV:Body></SOAP-ENV:Envelope>'
+        payload += '<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+        payload += '<SOAP-ENV:Body><tns:identityPoint_identify_request xmlns:tns="http://services.bamnetworks.com/registration/types/1.4">'
+        payload += '<tns:identification type="email-password"><tns:id xsi:nil="true"/>'
+        payload += '<tns:fingerprint xsi:nil="true"/>'
+        payload += '<tns:email>'
+        payload += '<tns:id xsi:nil="true"/>'
+        payload += '<tns:address>' + USERNAME + '</tns:address>'
+        payload += '</tns:email>'
+        payload += '<tns:password>' + PASSWORD + '</tns:password>'
+        payload += '<tns:mobilePhone xsi:nil="true"/>'
+        payload += '<tns:profileProperty xsi:nil="true"/>'
+        payload += '</tns:identification>'
+        payload += '</tns:identityPoint_identify_request>'
+        payload += '</SOAP-ENV:Body>'
+        payload += '</SOAP-ENV:Envelope>'
 
         r = requests.post(url, headers=headers, data=payload, verify=VERIFY)
         save_cookies(r.cookies)
