@@ -122,17 +122,6 @@ def create_game_listitem(game, game_day):
                 # top_bottom = u"\u25BC"
                 top_bottom = "B"
 
-            """
-            inning = game['linescore']['currentInning']
-            if int(inning) % 10 == 1 and int(inning) != 11:
-                ordinal_indicator = "st"
-            elif int(inning) % 10 == 2 and int(inning) != 12:
-                ordinal_indicator = "nd"
-            elif int(inning) % 10 == 3 and int(inning) != 13:
-                ordinal_indicator = "rd"
-            else:
-                ordinal_indicator = "th"
-            """
             inning = game['linescore']['currentInningOrdinal']
             game_time = top_bottom + ' ' + inning
 
@@ -147,7 +136,7 @@ def create_game_listitem(game, game_day):
             game_time = colorString(game_time, LIVE)
 
     #event_id = str(game['calendar_event_id'])
-    event_id = 'junk'
+    game_pk = game['gamePk']
     #gid = game['id']
     gid = 'junk'
 
@@ -202,48 +191,16 @@ def create_game_listitem(game, game_day):
     except:
         pass
 
-    addStream(name, title, event_id, gid, icon, fanart, info, video_info, audio_info, teams_stream, stream_date)
+    addStream(name, title, game_pk, gid, icon, fanart, info, video_info, audio_info, teams_stream, stream_date)
 
 
-def streamSelect(event_id, gid, teams_stream, stream_date):
-    display_day = stringToDate(stream_date, "%Y-%m-%d")
-    url_game_day = display_day.strftime('year_%Y/month_%m/day_%d')
-    url = 'http://gdx.mlb.com/components/game/mlb/' + url_game_day + '/grid_ce.json'
-
-    req = urllib2.Request(url)
-    req.add_header('Connection', 'close')
-    req.add_header('User-Agent', UA_PS4)
-
-    try:
-        response = urllib2.urlopen(req)
-        json_source = json.load(response)
-        response.close()
-    except HTTPError as e:
-        xbmc.log('The server couldn\'t fulfill the request.')
-        xbmc.log('Error code: ', e.code)
-        sys.exit()
-
-    # Find selected game
-    teams = {}
-    itr = json_source['data']['games']['game']
-    if type(itr) is not list:
-        itr = [itr]
-        # xbmc.log(str(itr))
-    for game in itr:
-        xbmc.log(game['id'])
-        xbmc.log(gid)
-
-        if gid == game['id']:
-            try:
-                epg = game['game_media']['homebase']['media']
-                teams = {'Home': game['home_name_abbrev'], 'Away': game['away_name_abbrev']}
-                break
-            except:
-                # no stream info, abort! abort!
-                msg = "No playable streams found."
-                dialog = xbmcgui.Dialog()
-                ok = dialog.ok('Streams Not Found', msg)
-                sys.exit()
+def stream_select(game_pk, gid, teams_stream, stream_date):
+    url = 'https://statsapi.mlb.com/api/v1/game/' + game_pk + '/content'
+    headers = {
+        'User-Agent': UA_ANDROID
+    }
+    r = requests.get(url,headers=headers, verify=VERIFY)
+    json_source = r.json()
 
     stream_title = []
     content_id = []
@@ -251,37 +208,18 @@ def streamSelect(event_id, gid, teams_stream, stream_date):
     media_state = []
     playback_scenario = []
     archive_type = ['Highlights', 'Recap', 'Condensed', 'Full Game']
-    # archive_type = ['Recap','Condensed','Full Game']
-    try:
-        for item in epg:
-            xbmc.log(str(item))
-            xbmc.log(str(item['playback_scenario']))
-            xbmc.log(PLAYBACK_SCENARIO)
-            if str(item['playback_scenario']) == PLAYBACK_SCENARIO:
+    epg = json_source['media']['epg'][0]['items']
+    for item in epg:
+        xbmc.log(str(item))
+        if item['mediaState'] != 'MEDIA_OFF':
+            title = str(item['mediaFeedType']).title()
+            title = title.replace('_', ' ')
+            stream_title.append(title + " (" + item['callLetters'] + ")")
+            media_state.append(item['mediaState'])
+            content_id.append(item['mediaId'])
+            # content_id.append(item['guid'])
+            # playback_scenario.append(str(item['playback_scenario']))
 
-                if item['enhanced'] == 'Y':
-                    title = 'Enhanced'
-                    stream_title.append(title)
-                else:
-                    title = str(item['type'])[6:].title()
-                    try:
-                        stream_title.append(teams[title] + " (" + item['display'] + ")")
-                    except:
-                        stream_title.append(title + " (" + item['display'] + ")")
-
-                media_state.append(item['state'])
-                content_id.append(item['id'])
-                playback_scenario.append(str(item['playback_scenario']))
-
-            elif str(item['playback_scenario']) == "HTTP_CLOUD_AUDIO" and item['state'] != 'MEDIA_OFF':
-                title = str(item['type']).title()
-                title = title.replace('_', ' ')
-                stream_title.append(title + " (" + item['display'] + ")")
-                media_state.append(item['state'])
-                content_id.append(item['id'])
-                playback_scenario.append(str(item['playback_scenario']))
-    except:
-        pass
     '''
     elif str(item['playback_scenario']) == "FLASH_2500K_1280X720" and item['type'] != 'condensed_game':
         title = str(item['type']).title()

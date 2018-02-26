@@ -41,7 +41,7 @@ elif mode == 101:
     todays_games(game_day)
 
 elif mode == 104:
-    streamSelect(event_id, gid, teams_stream, stream_date)
+    stream_select(event_id, gid, teams_stream, stream_date)
 
 elif mode == 105:
     # Yesterday's Games
