@@ -207,7 +207,6 @@ def stream_select(game_pk, gid, teams_stream, stream_date):
     free_game = []
     media_state = []
     playback_scenario = []
-    archive_type = ['Highlights', 'Recap', 'Condensed', 'Full Game']
     epg = json_source['media']['epg'][0]['items']
     for item in epg:
         xbmc.log(str(item))
@@ -248,39 +247,7 @@ def stream_select(game_pk, gid, teams_stream, stream_date):
     play_highlights = 0
     if len(media_state) > 0:
         if media_state[0] == 'MEDIA_ARCHIVE':
-            dialog = xbmcgui.Dialog()
-            a = dialog.select('Choose Archive', archive_type)
-
-            if a > -1:
-                if a < 3:
-                    recap, condensed, highlights = getHighlightLinks(teams_stream, stream_date)
-                    if a == 0:
-                        play_highlights = 1
-                    elif a == 1:
-                        try:
-                            stream_url = recap['url']
-                        except:
-                            dialog = xbmcgui.Dialog()
-                            ok = dialog.ok('Recap Not Available', 'The recap for this game is not yet available. \nPlease check back later.')
-                    else:
-                        try:
-                            stream_url = condensed['url']
-                        except:
-                            dialog = xbmcgui.Dialog()
-                            ok = dialog.ok('Condensed Game Not Available', 'The condensed game is not yet available. \nPlease check back later.')
-
-                    if QUALITY == 'Always Ask' and ((len(highlights) > 0 and play_highlights == 1) or stream_url != ''):
-                        bandwidth = getStreamQuality(str(highlights[0][0]))
-                    else:
-                        bandwidth = find(QUALITY, '(', ' kbps)')
-
-                    stream_url = createHighlightStream(stream_url, bandwidth)
-                elif a == 3:
-                    dialog = xbmcgui.Dialog()
-                    n = dialog.select('Choose Stream', stream_title)
-                    if n > -1:
-                        stream_url, media_auth = fetchStream(content_id[n], event_id, playback_scenario[n])
-                        stream_url = createFullGameStream(stream_url, media_auth, media_state[n])
+            choose_archive()
         else:
             # Add Highlights option to live games
             stream_title.insert(0, 'Highlights')
@@ -349,6 +316,45 @@ def stream_select(game_pk, gid, teams_stream, stream_date):
     else:
         # xbmcplugin.setResolvedUrl(addon_handle, False, listitem)
         xbmc.executebuiltin('Dialog.Close(all,true)')
+
+
+def choose_archive():
+    archive_type = ['Highlights', 'Recap', 'Condensed', 'Full Game']
+    dialog = xbmcgui.Dialog()
+    a = dialog.select('Choose Archive', archive_type)
+
+    if a > -1:
+        if archive_type[a].lower() != 'full game':
+            recap, condensed, highlights = getHighlightLinks(teams_stream, stream_date)
+            if archive_type[a].lower() == 'highlights':
+                play_highlights = 1
+            elif archive_type[a].lower() == 'recap':
+                if 'url' in recap:
+                    stream_url = recap['url']
+                else:
+                    dialog = xbmcgui.Dialog()
+                    dialog.ok('Recap Not Available', 'The recap for this game is not yet available. \nPlease check back later.')
+            else:
+                if 'url' in condensed:
+                    stream_url = condensed['url']
+                else:
+                    dialog = xbmcgui.Dialog()
+                    dialog.ok('Condensed Game Not Available', 'The condensed game is not yet available. \nPlease check back later.')
+            """                    
+            if QUALITY == 'Always Ask' and ((len(highlights) > 0 and play_highlights == 1) or stream_url != ''):
+                bandwidth = getStreamQuality(str(highlights[0][0]))
+            else:
+                bandwidth = find(QUALITY, '(', ' kbps)')
+            """
+            stream_url = createHighlightStream(stream_url, bandwidth)
+        else:
+            dialog = xbmcgui.Dialog()
+            n = dialog.select('Choose Stream', stream_title)
+            if n > -1:
+                stream_url, media_auth = fetchStream(content_id[n], event_id, playback_scenario[n])
+                stream_url = createFullGameStream(stream_url, media_auth, media_state[n])
+
+        return stream_url
 
 
 def playAllHighlights():
@@ -766,6 +772,7 @@ def login():
         settings.setSetting("old_username", USERNAME)
         settings.setSetting("old_password", PASSWORD)
 
+        url = 'https://secure.mlb.com/pubajaxws/services/IdentityPointService'
         headers = {
             "SOAPAction": "http://services.bamnetworks.com/registration/identityPoint/identify",
             "Content-type": "text/xml; charset=utf-8",
@@ -791,6 +798,54 @@ def login():
         payload += '</SOAP-ENV:Envelope>'
 
         r = requests.post(url, headers=headers, data=payload, verify=VERIFY)
+        if r.status_code == 200:
+            fingerprint = find(r.text, '<fingerprint>', '</fingerprint>')
+            settings.setSetting("fingerprint", fingerprint)
+            save_cookies(r.cookies)
+
+
+def feature_service():
+    url = 'https://secure.mlb.com/pubajaxws/services/FeatureService'
+    headers = {
+        "SOAPAction": "http://services.bamnetworks.com/registration/feature/findEntitledFeatures",
+        "Content-type": "text/xml; charset=utf-8",
+        "User-Agent": "Dalvik/2.1.0 (Linux; U; Android 6.0.1; Hub Build/MHC19J)",
+        "Connection": "Keep-Alive"
+    }
+
+    payload = "<?xml version='1.0' encoding='UTF-8'?>"
+    payload += '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">'
+    payload += '<soapenv:Header />'
+    payload += '<soapenv:Body>'
+    payload += '<feature_findEntitled_request xmlns="http://services.bamnetworks.com/registration/types/1.6">'
+
+    if settings.getSetting("fingerprint") != '' and settings.getSetting("session_key") != '':
+        payload += "<identification type='fingerprint'>"
+        payload += '<id></id>' # ipid from cookies
+        payload += '<fingerprint>' + settings.getSetting("fingerprint") + '</fingerprint>'
+        payload += "<signOnRestriction type='mobileApp'>"
+        payload += '<location>ANDROID_21d994bd-ebb1-4253-bcab-3550e7882294</location>'
+        payload += '<sessionKey>' + settings.getSetting("session_key") + '</sessionKey>'
+    else:
+        payload += "<identification type='email-password'>"
+        payload += '<email><address>' + USERNAME + '</address></email>'
+        payload += '<password>' + PASSWORD + '</password>'
+        payload += '<signOnRestriction type="mobileApp">'
+        payload += '<location>ANDROID_21d994bd-ebb1-4253-bcab-3550e7882294</location>'
+
+    payload += '</signOnRestriction>'
+    payload += '</identification>'
+    payload += '<featureContextName>MLBTV2017.INAPPPURCHASE</featureContextName>'
+    payload += '</feature_findEntitled_request>'
+    payload += '</soapenv:Body>'
+    payload += '</soapenv:Envelope>'
+
+    r = requests.post(url, headers=headers, data=payload, verify=VERIFY)
+    if r.status_code == 200:
+        fingerprint = find(r.text, '<fingerprint>', '</fingerprint>')
+        session_key = find(r.text, '<sessionKey>', '</sessionKey>')
+        settings.setSetting("fingerprint", fingerprint)
+        settings.setSetting("session_key", session_key)
         save_cookies(r.cookies)
 
 

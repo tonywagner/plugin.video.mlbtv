@@ -32,5 +32,9 @@
     <setting id='proxy_user' type='text' label='30240' default=''/>
     <setting id='proxy_pwd' type='text' label='30250' option='hidden' default=''/>
   </category>
+
+  <!--Hidden-->
+  <setting id='fingerprint' type='text' option='hidden' default=''/>
+  <setting id='session_key' type='text' option='hidden' default=''/>
 </settings>
 
