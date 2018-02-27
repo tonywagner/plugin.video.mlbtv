@@ -849,6 +849,22 @@ def feature_service():
         save_cookies(r.cookies)
 
 
+def media_entitlement():
+    url = 'https://media-entitlement.mlb.com/jwt'
+    url += '?ipid='
+    url += '&fingerprint='
+    url += '&os=Android'
+    url += '&appname=AtBat'
+    headers = {
+        'x-api-key': 'arBv5yTc359fDsqKdhYC41NZnIFZqEkY5Wyyn9uA',
+        'Cache-Control': 'no-cache',
+        'Connection': 'Keep-Alive',
+        'User-Agent': 'okhttp/3.9.0'
+    }
+
+    r = requests.get(url, headers=headers, cookies=load_cookies(), verify=VERIFY)
+
+
 def logout():
     # Just delete the cookie file
     cookie_file = xbmc.translatePath(os.path.join(ADDON_PATH_PROFILE + 'cookies.lwp'))
