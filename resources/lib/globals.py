@@ -164,6 +164,7 @@ def easternToLocal(eastern_time):
     assert utc_time.resolution >= timedelta(microseconds=1)
     return local_dt.replace(microsecond=utc_time.microsecond)
 
+
 def UTCToLocal(utc_dt):
     # get integer timestamp to avoid precision lost
     timestamp = calendar.timegm(utc_dt.timetuple())
@@ -216,7 +217,7 @@ def get_params():
 
 def add_stream(name, title, game_pk, icon=None, fanart=None, info=None, video_info=None, audio_info=None, stream_date=None):
     ok=True
-    u=sys.argv[0]+"?mode="+str(104)+"&name="+urllib.quote_plus(name)+"&game_pk="+urllib.quote_plus(str(game_pk))+"&gid="+urllib.quote_plus(str(gid))"&stream_date="+urllib.quote_plus(str(stream_date))
+    u=sys.argv[0]+"?mode="+str(104)+"&name="+urllib.quote_plus(name)+"&game_pk="+urllib.quote_plus(str(game_pk))+"&stream_date="+urllib.quote_plus(str(stream_date))
 
     #if icon != None:
     liz=xbmcgui.ListItem(name, iconImage=ICON, thumbnailImage=icon) 
@@ -432,6 +433,7 @@ def getAudioVideoInfo():
 
     audio_info = { 'codec': 'aac', 'language': 'en', 'channels': 2 }
     return audio_info, video_info
+
 
 def getConfigFile():
     '''

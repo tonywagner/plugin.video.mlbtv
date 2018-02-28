@@ -97,7 +97,7 @@ def create_game_listitem(game, game_day):
     if game['status']['abstractGameState'] == 'Preview':
         game_time = game['gameDate']
         game_time = stringToDate(game_time, "%Y-%m-%dT%H:%M:%SZ")
-        game_time = easternToLocal(game_time)
+        game_time = UTCToLocal(game_time)
 
         if TIME_FORMAT == '0':
             game_time = game_time.strftime('%I:%M %p').lstrip('0')
@@ -188,7 +188,7 @@ def create_game_listitem(game, game_day):
         pass
     """
 
-    addStream(name, title, game_pk, icon, fanart, info, video_info, audio_info, stream_date)
+    add_stream(name, title, game_pk, icon, fanart, info, video_info, audio_info, stream_date)
 
 
 def stream_select(game_pk, stream_date):
@@ -262,17 +262,19 @@ def stream_select(game_pk, stream_date):
             # getHighlightLinks(teams_stream, stream_date)
             play_highlights = 1
     """
+    stream_url = ''
+    play_highlights = False
     dialog = xbmcgui.Dialog()
     n = dialog.select('Choose Stream', stream_title)
-    stream_url = get_stream(media_id[n])
-
-    listitem = xbmcgui.ListItem(path=stream_url)
-    listitem.setMimeType("application/x-mpegURL")
+    if n > -1:
+        stream_url, headers = get_stream(media_id[n])
 
     if '.m3u8' in stream_url:
+        listitem = xbmcgui.ListItem(path=stream_url + headers)
+        listitem.setMimeType("application/x-mpegURL")
         xbmcplugin.setResolvedUrl(handle=addon_handle, succeeded=True, listitem=listitem)
 
-    elif play_highlights == 1:
+    elif play_highlights:
         highlight_name = ['Play All']
         highlight_url = ['junk']
         for i in range(0, len(highlights) - 1):
@@ -513,202 +515,6 @@ def createFullGameStream(stream_url, media_auth, media_state):
     return stream_url
 
 
-def fetchStream(content_id, event_id, playback_scenario):
-    stream_url = ''
-    media_auth = ''
-    identity_point_id = ''
-    fingerprint = ''
-
-    expired_cookies = True
-    try:
-        cj = cookielib.LWPCookieJar(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'))
-        cj.load(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'), ignore_discard=True)
-
-        # Check if cookies have expired
-        at_least_one_expired = False
-        num_cookies = 0
-        for cookie in cj:
-            num_cookies += 1
-            if cookie.is_expired():
-                at_least_one_expired = True
-                break
-
-        if not at_least_one_expired:
-            expired_cookies = False
-    except:
-        pass
-
-    if expired_cookies or num_cookies == 0 or USERNAME != OLD_USERNAME or PASSWORD != OLD_PASSWORD:
-        # Remove cookie file
-        cookie_file = xbmc.translatePath(os.path.join(ADDON_PATH_PROFILE + 'cookies.lwp'))
-        try:
-            os.remove(cookie_file)
-        except:
-            pass
-        login()
-
-    cj = cookielib.LWPCookieJar(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'))
-    cj.load(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'), ignore_discard=True)
-    for cookie in cj:
-        if cookie.name == "ipid":
-            identity_point_id = cookie.value
-        elif cookie.name == "fprt":
-            fingerprint = cookie.value
-
-    if identity_point_id == '' or fingerprint == '':
-        return stream_url, media_auth
-
-    session_key = getSessionKey(content_id, event_id, identity_point_id, fingerprint)
-    # Reload Cookies
-    cj = cookielib.LWPCookieJar(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'))
-    cj.load(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'), ignore_discard=True)
-
-    if PROXY_ENABLED != 'true':
-        opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))
-    else:
-        proxy_url = 'http://' + PROXY_SERVER + ':' + PROXY_PORT
-        proxy_support = urllib2.ProxyHandler({'http': proxy_url, 'https': proxy_url})
-        if PROXY_USER != '' and PROXY_PWD != '':
-            auth_handler = urllib2.ProxyBasicAuthHandler()
-            auth_handler.add_password(None, proxy_url, PROXY_USER, PROXY_PWD)
-            opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj), proxy_support, auth_handler)
-        else:
-            opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj), proxy_support)
-
-        urllib2.install_opener(opener)
-
-    if session_key == '':
-        return stream_url, media_auth
-    elif session_key == 'blackout':
-        msg = "The game you are trying to access is not currently available due to local or national blackout restrictions.\n Full game archives will be available 48 hours after completion of this game."
-        dialog = xbmcgui.Dialog()
-        ok = dialog.ok('Game Blacked Out', msg)
-        return stream_url, media_auth
-
-    url = 'https://mlb-ws-mf.media.mlb.com/pubajaxws/bamrest/MediaService2_0/op-findUserVerifiedEvent/v-2.3'
-    url = url + '?identityPointId=' + identity_point_id
-    url = url + '&fingerprint=' + fingerprint
-    url = url + '&contentId=' + content_id
-    url = url + '&eventId=' + event_id
-    url = url + '&playbackScenario=' + playback_scenario
-    url = url + '&subject=LIVE_EVENT_COVERAGE'
-    url = url + '&sessionKey=' + urllib.quote_plus(session_key)
-    url = url + '&platform=PS4'
-    url = url + '&format=json'
-    req = urllib2.Request(url)
-    req.add_header("Accept", "*/*")
-    req.add_header("Accept-Encoding", "deflate")
-    req.add_header("Accept-Language", "en-US,en;q=0.8")
-    req.add_header("Connection", "keep-alive")
-    req.add_header("User-Agent", UA_PS4)
-
-    response = opener.open(req)
-    json_source = json.load(response)
-    response.close()
-
-    if json_source['status_code'] == 1:
-        uv_media_item = json_source['user_verified_event'][0]['user_verified_content'][0]['user_verified_media_item'][0]
-        if 'BLACKOUT' in str(uv_media_item['blackout_status']).upper():
-            msg = "We're sorry.  We have determined that you are blacked out of watching the game you selected due to Major League Baseball exclusivities."
-            # try:
-            if str(uv_media_item['media_item']['state']).upper() == 'MEDIA_ARCHIVE':
-                # cc_url = str(json_source['user_verified_event'][0]['user_verified_content'][0]['domain_specific_attributes'][3]['value'])
-                for attribute in json_source['user_verified_event'][0]['user_verified_content'][0]['domain_specific_attributes']:
-                    if str(attribute['name']).lower() == 'inning_index_location_xml':
-                        inning_xml_url = str(attribute['value'])
-                        # inning_xml_url = "http://mlb.mlb.com/mlb/mmls2016/447002.xml"
-                        blackout_lift_min, blackout_lift_time = getBlackoutLiftTime(inning_xml_url)
-                        msg = msg + " This blackout will expire in " + str(blackout_lift_min) + " minutes at approximately " + str(blackout_lift_time) + "."
-                        break
-
-            dialog = xbmcgui.Dialog()
-            ok = dialog.ok('Game Blacked Out', msg)
-            sys.exit()
-            xbmc.executebuiltin('Dialog.Close(all,true)')
-        elif str(uv_media_item['auth_status']) == 'NotAuthorizedStatus':
-            msg = "You do not have an active MLB.TV premium subscription. If you are using a Single Team or Free subscription please check this is enabled in the addon settings."
-            dialog = xbmcgui.Dialog()
-            ok = dialog.ok('Account Not Authorized', msg)
-            sys.exit()
-            xbmc.executebuiltin('Dialog.Close(all,true)')
-        else:
-            stream_url = uv_media_item['url']
-            # Find subtitles
-            '''
-            for item in json_source['user_verified_event'][0]['user_verified_content'][0]['domain_specific_attributes']:
-                if item['name'] == 'closed_captions_location_ttml':
-                    subtitles_url = item['value']
-                    convertSubtitles(subtitles_url)
-            '''
-            session_key = json_source['session_key']
-            # Update Session Key
-            settings.setSetting(id='session_key', value=session_key)
-    else:
-        msg = json_source['status_message']
-        dialog = xbmcgui.Dialog()
-        ok = dialog.ok('Error Fetching Stream', msg)
-
-    for cookie in cj:
-        if cookie.name == "mediaAuth":
-            media_auth = "mediaAuth=" + cookie.value
-            settings.setSetting(id='media_auth', value=media_auth)
-
-    cj.save(ignore_discard=True)
-
-    return stream_url, media_auth
-
-
-def getSessionKey(content_id, event_id, identity_point_id, fingerprint):
-    # session_key = ''
-    session_key = str(settings.getSetting(id="session_key"))
-
-    if session_key == '':
-        cj = cookielib.LWPCookieJar(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'))
-        cj.load(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'), ignore_discard=True)
-        opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))
-
-        epoch_time_now = str(int(round(time.time() * 1000)))
-        url = 'https://mlb-ws-mf.media.mlb.com/pubajaxws/bamrest/MediaService2_0/op-findUserVerifiedEvent/v-2.3'
-        url = url + '?identityPointId=' + identity_point_id
-        url = url + '&fingerprint=' + fingerprint
-        url = url + '&eventId=' + event_id
-        url = url + '&subject=LIVE_EVENT_COVERAGE'
-        url = url + '&platform=WIN8'
-        url = url + '&frameworkURL=https://mlb-ws-mf.media.mlb.com&frameworkEndPoint=/pubajaxws/bamrest/MediaService2_0/op-findUserVerifiedEvent/v-2.3'
-        url = url + '&_=' + epoch_time_now
-
-        req = urllib2.Request(url)
-        req.add_header("Accept", "*/*")
-        req.add_header("Accept-Encoding", "deflate")
-        req.add_header("Accept-Language", "en-US,en;q=0.8")
-        req.add_header("Connection", "keep-alive")
-        req.add_header("User-Agent", UA_PC)
-        req.add_header("Origin", "http://m.mlb.com")
-        req.add_header("Referer", "http://m.mlb.com/tv/e" + event_id + "/v" + content_id + "/?&media_type=video&clickOrigin=Media Grid&team=mlb&forwardUrl=http://m.mlb.com/tv/e" + event_id + "/v" + content_id + "/?&media_type=video&clickOrigin=Media%20Grid&team=mlb&template=mp5default&flowId=registration.dynaindex&mediaTypeTemplate=video")
-
-        response = opener.open(req)
-        xml_data = response.read()
-        response.close()
-
-        session_key = find(xml_data, '<session-key>', '</session-key>')
-        settings.setSetting(id='session_key', value=session_key)
-
-        '''
-        if json_source['status_code'] == 1:      
-            if json_source['user_verified_event'][0]['user_verified_content'][0]['user_verified_media_item'][0]['blackout_status']['status'] == 'BlackedOutStatus':
-                msg = "You do not have access to view this content. To watch live games and learn more about blackout restrictions, please visit NHL.TV"
-                session_key = 'blackout'
-            else:    
-                session_key = str(json_source['session_key'])
-                settings.setSetting(id='session_key', value=session_key)                              
-        else:
-            msg = json_source['status_message']
-            dialog = xbmcgui.Dialog() 
-            ok = dialog.ok('Error Fetching Stream', msg)            
-        '''
-    return session_key
-
-
 def myTeamsGames():
     if FAV_TEAM != 'None':
         fav_team_id = getFavTeamId()
@@ -786,8 +592,6 @@ def login():
 
         r = requests.post(url, headers=headers, data=payload, verify=VERIFY)
         if r.status_code == 200:
-            fingerprint = find(r.text, '<fingerprint>', '</fingerprint>')
-            settings.setSetting("fingerprint", fingerprint)
             save_cookies(r.cookies)
 
 
@@ -836,11 +640,29 @@ def feature_service():
         save_cookies(r.cookies)
 
 
+def check_cookies():
+    perform_login = False
+    if os.path.isfile(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp')):
+        cj = cookielib.LWPCookieJar(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'))
+        cj.load(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'),ignore_discard=True)
+
+        for cookie in cj:
+            if (cookie.name == "fingerprint" or cookie.name == "ipid") and cookie.is_expired():
+                perform_login = True
+                break
+    else:
+        perform_login = True
+
+    if perform_login:
+        login()
+
+
 def media_entitlement():
+    check_cookies()
     cookies = requests.utils.dict_from_cookiejar(load_cookies())
     url = 'https://media-entitlement.mlb.com/jwt'
     url += '?ipid=' + cookies['ipid']
-    url += '&fingerprint=' + settings.getSetting('fingerprint')
+    url += '&fingerprint=' + cookies['fprt']
     url += '&os=Android'
     url += '&appname=AtBat'
     headers = {
@@ -893,24 +715,19 @@ def get_stream(media_id):
     r = requests.get(url, headers=headers, cookies=load_cookies(), verify=VERIFY)
     stream_url = r.json()['stream']['complete']
     cookies = requests.utils.dict_from_cookiejar(load_cookies())
-    stream_url += '|User-Agent=MLB.TV/3.5.0 (Linux;Android 6.0.1) ExoPlayerLib/2.5.4'
-    stream_url += '&Authorization=' + auth
-    stream_url += '&Cookie='
+    headers = '|User-Agent=MLB.TV/3.5.0 (Linux;Android 6.0.1) ExoPlayerLib/2.5.4'
+    headers += '&Authorization=' + auth
+    headers += '&Cookie='
     for key, value in cookies.iteritems():
-        stream_url += key + '=' + value + '; '
+        headers += key + '=' + value + '; '
 
-    return stream_url
+    return stream_url, headers
 
 
 def logout():
-    # Just delete the cookie file
-    cookie_file = xbmc.translatePath(os.path.join(ADDON_PATH_PROFILE + 'cookies.lwp'))
-    try:
-        os.remove(cookie_file)
-    except:
-        pass
+    if os.path.isfile(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp')):
+        os.remove(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'))
 
-    settings.setSetting(id='session_key', value='')
     dialog = xbmcgui.Dialog()
     title = "Logout Successful"
     dialog.notification(title, 'Logout completed successfully', ICON, 5000, False)
