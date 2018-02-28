@@ -112,7 +112,7 @@ def create_game_listitem(game, game_day):
         if game_time == 'Final':
             game_time = colorString(game_time, FINAL)
 
-        elif 'In Progress' in game_time:
+        elif game['status']['abstractGameState'] == 'Live':
             if game['linescore']['isTopInning']:
                 # up triangle
                 # top_bottom = u"\u25B2"
@@ -125,7 +125,7 @@ def create_game_listitem(game, game_day):
             inning = game['linescore']['currentInningOrdinal']
             game_time = top_bottom + ' ' + inning
 
-            if int(inning) >= 9:
+            if game['linescore']['currentInning'] >= 9:
                 color = CRITICAL
             else:
                 color = LIVE
@@ -142,15 +142,11 @@ def create_game_listitem(game, game_day):
 
     live_feeds = 0
     archive_feeds = 0
-    #teams_stream = game['away_code'] + game['home_code']
-    teams_stream = 'junk'
     stream_date = str(game_day)
 
     desc = ''
-    hide_spoilers = 0
     if NO_SPOILERS == '1' or (NO_SPOILERS == '2' and fav_game) or (NO_SPOILERS == '3' and game_day == localToEastern()) or (NO_SPOILERS == '4' and game_day < localToEastern()) or game['status']['abstractGameState'] == 'Preview':
         name = game_time + ' ' + away_team + ' at ' + home_team
-        hide_spoilers = 1
     else:
         name = game_time + ' ' + away_team + ' ' + colorString(str(game['linescore']['teams']['away']['runs']), SCORE_COLOR) + ' at ' + home_team + ' ' + colorString(str(game['linescore']['teams']['home']['runs']), SCORE_COLOR)
 
@@ -176,7 +172,7 @@ def create_game_listitem(game, game_day):
     info = {'plot': desc, 'tvshowtitle': 'MLB', 'title': title, 'originaltitle': title, 'aired': game_day, 'genre': LOCAL_STRING(700), 'mediatype': 'video'}
 
     # Create Playlist for the days recaps and condensed
-
+    """
     try:
         recap_url, condensed_url = getHighlightLinks(teams_stream, stream_date)
         global RECAP_PLAYLIST
@@ -190,11 +186,12 @@ def create_game_listitem(game, game_day):
         EXTENDED_PLAYLIST.add(condensed_url, listitem)
     except:
         pass
+    """
 
-    addStream(name, title, game_pk, gid, icon, fanart, info, video_info, audio_info, teams_stream, stream_date)
+    addStream(name, title, game_pk, icon, fanart, info, video_info, audio_info, stream_date)
 
 
-def stream_select(game_pk, gid, teams_stream, stream_date):
+def stream_select(game_pk, stream_date):
     url = 'https://statsapi.mlb.com/api/v1/game/' + game_pk + '/content'
     headers = {
         'User-Agent': UA_ANDROID
@@ -203,7 +200,7 @@ def stream_select(game_pk, gid, teams_stream, stream_date):
     json_source = r.json()
 
     stream_title = []
-    content_id = []
+    media_id = []
     free_game = []
     media_state = []
     playback_scenario = []
@@ -213,9 +210,9 @@ def stream_select(game_pk, gid, teams_stream, stream_date):
         if item['mediaState'] != 'MEDIA_OFF':
             title = str(item['mediaFeedType']).title()
             title = title.replace('_', ' ')
-            stream_title.append(title + " (" + item['callLetters'] + ")")
+            stream_title.append(title + " (" + item['callLetters'].encode('utf-8') + ")")
             media_state.append(item['mediaState'])
-            content_id.append(item['mediaId'])
+            media_id.append(item['mediaId'])
             # content_id.append(item['guid'])
             # playback_scenario.append(str(item['playback_scenario']))
 
@@ -232,25 +229,18 @@ def stream_select(game_pk, gid, teams_stream, stream_date):
     if len(stream_title) == 0 and stream_date > localToEastern():
         msg = "No playable streams found."
         dialog = xbmcgui.Dialog()
-        ok = dialog.ok('Streams Not Found', msg)
+        dialog.ok('Streams Not Found', msg)
         sys.exit()
 
-    # Reverse Order for display purposes
-    # stream_title.reverse()
-    # ft.reverse()
-    xbmc.log("MEDIA STATE")
-    xbmc.log(str(media_state))
 
-    stream_url = ''
-    media_auth = ''
-
+    """        
     play_highlights = 0
     if len(media_state) > 0:
         if media_state[0] == 'MEDIA_ARCHIVE':
-            choose_archive()
+            stream_url = choose_archive(stream_title, media_id)
         else:
             # Add Highlights option to live games
-            stream_title.insert(0, 'Highlights')
+            #stream_title.insert(0, 'Highlights')
             dialog = xbmcgui.Dialog()
             n = dialog.select('Choose Stream', stream_title)
             if n > -1:
@@ -263,12 +253,7 @@ def stream_select(game_pk, gid, teams_stream, stream_date):
                         else:
                             bandwidth = find(QUALITY, '(', ' kbps)')
                 else:
-                    try:
-                        n = n - 1
-                        stream_url, media_auth = fetchStream(content_id[n], event_id, playback_scenario[n])
-                        stream_url = createFullGameStream(stream_url, media_auth, media_state[n])
-                    except:
-                        pass
+                    stream_url = get_stream(media_id[n])
     else:
         archive_type = ['Highlights']
         dialog = xbmcgui.Dialog()
@@ -276,8 +261,13 @@ def stream_select(game_pk, gid, teams_stream, stream_date):
         if a == 0:
             # getHighlightLinks(teams_stream, stream_date)
             play_highlights = 1
+    """
+    dialog = xbmcgui.Dialog()
+    n = dialog.select('Choose Stream', stream_title)
+    stream_url = get_stream(media_id[n])
 
     listitem = xbmcgui.ListItem(path=stream_url)
+    listitem.setMimeType("application/x-mpegURL")
 
     if '.m3u8' in stream_url:
         xbmcplugin.setResolvedUrl(handle=addon_handle, succeeded=True, listitem=listitem)
@@ -311,21 +301,19 @@ def stream_select(game_pk, gid, teams_stream, stream_date):
                 listitem = xbmcgui.ListItem(highlights[i][1], thumbnailImage=highlights[i][2])
                 listitem.setInfo(type="Video", infoLabels={"Title": highlights[i][1]})
                 HIGHLIGHT_PLAYLIST.add(createHighlightStream(highlights[i][0], bandwidth), listitem)
-
-
     else:
         # xbmcplugin.setResolvedUrl(addon_handle, False, listitem)
         xbmc.executebuiltin('Dialog.Close(all,true)')
 
 
-def choose_archive():
+def choose_archive(stream_title, media_id):
     archive_type = ['Highlights', 'Recap', 'Condensed', 'Full Game']
     dialog = xbmcgui.Dialog()
     a = dialog.select('Choose Archive', archive_type)
 
     if a > -1:
         if archive_type[a].lower() != 'full game':
-            recap, condensed, highlights = getHighlightLinks(teams_stream, stream_date)
+            #recap, condensed, highlights = getHighlightLinks(teams_stream, stream_date)
             if archive_type[a].lower() == 'highlights':
                 play_highlights = 1
             elif archive_type[a].lower() == 'recap':
@@ -351,8 +339,9 @@ def choose_archive():
             dialog = xbmcgui.Dialog()
             n = dialog.select('Choose Stream', stream_title)
             if n > -1:
-                stream_url, media_auth = fetchStream(content_id[n], event_id, playback_scenario[n])
-                stream_url = createFullGameStream(stream_url, media_auth, media_state[n])
+                # stream_url, media_auth = fetchStream(content_id[n], event_id, playback_scenario[n])
+                # stream_url = createFullGameStream(stream_url, media_auth, media_state[n])
+                stream_url = get_stream(media_id[n])
 
         return stream_url
 
@@ -746,12 +735,10 @@ def myTeamsGames():
 
             for game in date['games']:
                 create_game_listitem(game, date['date'])
-
-
     else:
         msg = "Please select your favorite team from the addon settings"
         dialog = xbmcgui.Dialog()
-        ok = dialog.ok('Favorite Team Not Set', msg)
+        dialog.ok('Favorite Team Not Set', msg)
 
 
 def login():
@@ -850,9 +837,10 @@ def feature_service():
 
 
 def media_entitlement():
+    cookies = requests.utils.dict_from_cookiejar(load_cookies())
     url = 'https://media-entitlement.mlb.com/jwt'
-    url += '?ipid='
-    url += '&fingerprint='
+    url += '?ipid=' + cookies['ipid']
+    url += '&fingerprint=' + settings.getSetting('fingerprint')
     url += '&os=Android'
     url += '&appname=AtBat'
     headers = {
@@ -863,6 +851,55 @@ def media_entitlement():
     }
 
     r = requests.get(url, headers=headers, cookies=load_cookies(), verify=VERIFY)
+
+    return r.text
+
+
+def access_token():
+    url = 'https://edge.bamgrid.com/token'
+    headers = {
+        'Authorization': 'Bearer bWxidHYmYW5kcm9pZCYxLjAuMA.6LZMbH2r--rbXcgEabaDdIslpo4RyZrlVfWZhsAgXIk',
+        'Accept': 'application/json',
+        'X-BAMSDK-Version': 'v3.0.0-beta2-3',
+        'X-BAMSDK-Platform': 'Android',
+        'User-Agent': 'BAMSDK/3.0.0-beta2 (mlbaseball-7993996e; v2.0/v3.0.1; android; tv) WeTek Hub (wetekhub-user 6.0.1 MHC19J 20170612 release-keys; Linux; 6.0.1; API 23)',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Connection': 'Keep-Alive',
+        'Accept-Encoding': 'gzip'
+    }
+
+    payload = 'grant_type=urn:ietf:params:oauth:grant-type:token-exchange'
+    payload += '&subject_token=' + media_entitlement()
+    payload += '&subject_token_type=urn:ietf:params:oauth:token-type:jwt'
+    payload += '&platform=android-tv'
+
+    r = requests.post(url, headers=headers, data=payload, cookies=load_cookies(), verify=VERIFY)
+    access_token = r.json()['access_token']
+    # refresh_toekn = r.json()['refresh_token']
+    return access_token
+
+
+def get_stream(media_id):
+    auth = access_token()
+    url = 'https://edge.svcs.mlb.com/media/' + media_id + '/scenarios/android'
+    headers = {
+        'Accept': 'application/vnd.media-service+json; version=2',
+        'Authorization': auth,
+        'X-BAMSDK-Version': 'v3.0.0-beta2-3',
+        'X-BAMSDK-Platform': 'Android',
+        'User-Agent': 'BAMSDK/3.0.0-beta2 (mlbaseball-7993996e; v2.0/v3.0.1; android; tv) WeTek Hub (wetekhub-user 6.0.1 MHC19J 20170612 release-keys; Linux; 6.0.1; API 23)'
+    }
+
+    r = requests.get(url, headers=headers, cookies=load_cookies(), verify=VERIFY)
+    stream_url = r.json()['stream']['complete']
+    cookies = requests.utils.dict_from_cookiejar(load_cookies())
+    stream_url += '|User-Agent=MLB.TV/3.5.0 (Linux;Android 6.0.1) ExoPlayerLib/2.5.4'
+    stream_url += '&Authorization=' + auth
+    stream_url += '&Cookie='
+    for key, value in cookies.iteritems():
+        stream_url += key + '=' + value + '; '
+
+    return stream_url
 
 
 def logout():

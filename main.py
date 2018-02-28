@@ -4,7 +4,7 @@ params = get_params()
 name = None
 mode = None
 game_day = None
-event_id = None
+game_pk = None
 gid = None
 teams_stream = None
 stream_date = None
@@ -18,11 +18,8 @@ if 'mode' in params:
 if 'game_day' in params:
     game_day = urllib.unquote_plus(params["game_day"])
 
-if 'event_id' in params:
-    event_id = urllib.unquote_plus(params["event_id"])
-
-if 'gid' in params:
-    gid = urllib.unquote_plus(params["gid"])
+if 'game_pk' in params:
+    game_pk = urllib.unquote_plus(params["game_pk"])
 
 if 'teams_stream' in params:
     teams_stream = urllib.unquote_plus(params["teams_stream"])
@@ -40,8 +37,9 @@ elif mode == 101:
     # Prev and Next
     todays_games(game_day)
 
+
 elif mode == 104:
-    stream_select(event_id, gid, teams_stream, stream_date)
+    stream_select(game_pk, stream_date)
 
 elif mode == 105:
     # Yesterday's Games

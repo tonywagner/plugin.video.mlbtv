@@ -214,28 +214,27 @@ def get_params():
     return param
 
 
-
-def addStream(name,title,event_id,gid,icon=None,fanart=None,info=None,video_info=None,audio_info=None,teams_stream=None,stream_date=None):
+def add_stream(name, title, game_pk, icon=None, fanart=None, info=None, video_info=None, audio_info=None, stream_date=None):
     ok=True
-    u=sys.argv[0]+"?mode="+str(104)+"&name="+urllib.quote_plus(name)+"&event_id="+urllib.quote_plus(str(event_id))+"&gid="+urllib.quote_plus(str(gid))+"&teams_stream="+urllib.quote_plus(str(teams_stream))+"&stream_date="+urllib.quote_plus(str(stream_date))
-    
+    u=sys.argv[0]+"?mode="+str(104)+"&name="+urllib.quote_plus(name)+"&game_pk="+urllib.quote_plus(str(game_pk))+"&gid="+urllib.quote_plus(str(gid))"&stream_date="+urllib.quote_plus(str(stream_date))
+
     #if icon != None:
     liz=xbmcgui.ListItem(name, iconImage=ICON, thumbnailImage=icon) 
     #else:
     #liz=xbmcgui.ListItem(name, iconImage="DefaultVideo.png", thumbnailImage=ICON) 
     
-    if fanart != None:
+    if fanart is not None:
         liz.setProperty('fanart_image', fanart)       
     else:
         liz.setProperty('fanart_image', FANART)
 
     liz.setProperty("IsPlayable", "true")
     liz.setInfo( type="Video", infoLabels={ "Title": title } )
-    if info != None:
+    if info is not None:
         liz.setInfo( type="Video", infoLabels=info)
-    if video_info != None:
+    if video_info is not None:
         liz.addStreamInfo('video', video_info)
-    if audio_info != None:
+    if audio_info is not None:
         liz.addStreamInfo('audio', audio_info)
 
     ok=xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=u,listitem=liz,isFolder=False)
@@ -255,14 +254,14 @@ def addLink(name,url,title,iconimage,info=None,video_info=None,audio_info=None,f
     #else:
     #liz=xbmcgui.ListItem(name, iconImage="DefaultVideo.png", thumbnailImage=ICON) 
 
-    if info != None:
+    if info is not None:
         liz.setInfo( type="Video", infoLabels=info)
-    if video_info != None:
+    if video_info is not None:
         liz.addStreamInfo('video', video_info)
-    if audio_info != None:
+    if audio_info is not None:
         liz.addStreamInfo('audio', audio_info)
 
-    if fanart != None:
+    if fanart is not None:
         liz.setProperty('fanart_image', fanart)
     else:
         liz.setProperty('fanart_image', FANART)
@@ -283,17 +282,17 @@ def addDir(name,mode,iconimage,fanart=None,game_day=None):
     #game_day = '2016-01-27'
 
     u=sys.argv[0]+"?mode="+str(mode)+"&name="+urllib.quote_plus(name)+"&icon="+urllib.quote_plus(iconimage)
-    if game_day != None:
+    if game_day is not None:
         u = u+"&game_day="+urllib.quote_plus(game_day)
 
-    if iconimage != None:
+    if iconimage is not None:
         liz=xbmcgui.ListItem(name, iconImage="DefaultVideo.png", thumbnailImage=iconimage) 
     else:
         liz=xbmcgui.ListItem(name, iconImage="DefaultVideo.png", thumbnailImage=ICON) 
 
     liz.setInfo( type="Video", infoLabels={ "Title": name } )
 
-    if fanart != None:
+    if fanart is not None:
         liz.setProperty('fanart_image', fanart)
     else:
         liz.setProperty('fanart_image', FANART)
@@ -308,14 +307,14 @@ def addPlaylist(name,game_day,mode,iconimage,fanart=None):
     ok=True    
     u=sys.argv[0]+"?mode="+str(mode)+"&name="+urllib.quote_plus(name)+"&icon="+urllib.quote_plus(iconimage)+"&stream_date="+urllib.quote_plus(str(game_day))
 
-    if iconimage != None:
+    if iconimage is not None:
         liz=xbmcgui.ListItem(name, iconImage="DefaultVideo.png", thumbnailImage=iconimage) 
     else:
         liz=xbmcgui.ListItem(name, iconImage="DefaultVideo.png", thumbnailImage=ICON) 
 
     liz.setInfo( type="Video", infoLabels={ "Title": name } )
 
-    if fanart != None:
+    if fanart is not None:
         liz.setProperty('fanart_image', fanart)
     else:
         liz.setProperty('fanart_image', FANART)
@@ -324,11 +323,11 @@ def addPlaylist(name,game_day,mode,iconimage,fanart=None):
     info = {'plot':'Watch all the days highlights for '+game_day,'tvshowtitle':'MLB','title':name,'originaltitle':name,'aired':game_day,'genre':LOCAL_STRING(700),'mediatype':'video'}
     audio_info, video_info = getAudioVideoInfo()
 
-    if info != None:
+    if info is not None:
         liz.setInfo( type="Video", infoLabels=info)
-    if video_info != None:
+    if video_info is not None:
         liz.addStreamInfo('video', video_info)
-    if audio_info != None:
+    if audio_info is not None:
         liz.addStreamInfo('audio', audio_info)
     
 
