@@ -229,7 +229,7 @@ def stream_select(game_pk, stream_date):
     if len(stream_title) == 0 and stream_date > localToEastern():
         msg = "No playable streams found."
         dialog = xbmcgui.Dialog()
-        dialog.ok('Streams Not Found', msg)
+        dialog.notification('Streams Not Found', msg, ICON, 5000, False)
         sys.exit()
 
 
@@ -591,7 +591,19 @@ def login():
         payload += '</SOAP-ENV:Envelope>'
 
         r = requests.post(url, headers=headers, data=payload, verify=VERIFY)
-        if r.status_code == 200:
+
+        """
+        Bad username => <status><code>-1000</code><message> [Invalid credentials for identification] [com.bamnetworks.registration.types.exception.IdentificationException: Account doesn't exits]</message><exceptionClass>com.bamnetworks.registration.types.exception.IdentificationException</exceptionClass><detail type="identityPoint" field="exists" message="false" messageKey="identityPoint.exists" /><detail type="identityPoint" field="email-password" message="identification error on identity point of type email-password" messageKey="identityPoint.email-password" /></status>
+        Bad password => <status><code>-1000</code><message> [Invalid credentials for identification] [com.bamnetworks.registration.types.exception.IdentificationException: Invalid Password]</message><exceptionClass>com.bamnetworks.registration.types.exception.IdentificationException</exceptionClass><detail type="identityPoint" field="exists" message="true" messageKey="identityPoint.exists" /><detail type="identityPoint" field="email-password" message="identification error on identity point of type email-password" messageKey="identityPoint.email-password" /></status>
+        Good => <status><code>1</code><message>OK</message></status>
+        """
+        if find(r.text, '<code>', '</code>') != '1':
+            title = find(r.text, '<message> [','] [')
+            msg = find(r.text, 'com.bamnetworks.registration.types.exception.IdentificationException: ', ']</message>')
+            dialog = xbmcgui.Dialog()
+            dialog.ok(title, msg)
+            sys.exit()
+        else:
             save_cookies(r.cookies)
 
 
@@ -641,17 +653,21 @@ def feature_service():
 
 
 def check_cookies():
-    perform_login = False
+    perform_login = True
     if os.path.isfile(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp')):
+        fingerprint_valid = False
+        ipid_valid = False
         cj = cookielib.LWPCookieJar(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'))
         cj.load(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'),ignore_discard=True)
 
         for cookie in cj:
-            if (cookie.name == "fingerprint" or cookie.name == "ipid") and cookie.is_expired():
-                perform_login = True
-                break
-    else:
-        perform_login = True
+            if cookie.name == "fingerprint" and not cookie.is_expired():
+                fingerprint_valid = True
+            elif cookie.name == "ipid" and not cookie.is_expired():
+                ipid_valid = True
+
+        if fingerprint_valid and ipid_valid:
+            perform_login = False
 
     if perform_login:
         login()
@@ -713,6 +729,15 @@ def get_stream(media_id):
     }
 
     r = requests.get(url, headers=headers, cookies=load_cookies(), verify=VERIFY)
+    if r.status_code != 200:
+        dialog = xbmcgui.Dialog()
+        title = "Error Occured"
+        msg = ""
+        for item in r.json()['errors']:
+            msg += item['code'] + '\n'
+        dialog.notification(title, msg, ICON, 5000, False)
+        sys.exit()
+
     stream_url = r.json()['stream']['complete']
     cookies = requests.utils.dict_from_cookiejar(load_cookies())
     headers = '|User-Agent=MLB.TV/3.5.0 (Linux;Android 6.0.1) ExoPlayerLib/2.5.4'
