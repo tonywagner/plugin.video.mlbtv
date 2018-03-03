@@ -1,5 +1,5 @@
 from resources.lib.globals import *
-
+from account import Account
 
 def categories():
     addDir('Today\'s Games', 100, ICON, FANART)
@@ -32,21 +32,6 @@ def todays_games(game_day):
     url += '&sportId=1,51'
     url += '&date=' + game_day
 
-
-    """
-    req = urllib2.Request(url)
-    req.add_header('Connection', 'close')
-    req.add_header('User-Agent', UA_PS4)
-
-    try:
-        response = urllib2.urlopen(req)
-        json_source = json.load(response)
-        response.close()
-    except HTTPError as e:
-        xbmc.log('The server couldn\'t fulfill the request.')
-        xbmc.log('Error code: ', e.code)
-        sys.exit()
-    """
     headers = {
         'User-Agent': UA_ANDROID
     }
@@ -72,7 +57,9 @@ def create_game_listitem(game, game_day):
     # B&W
     # fanart = 'http://mlb.mlb.com/mlb/images/devices/ballpark/1920x1080/'+game['venue_id']+'.jpg'
     # Color
-    fanart = 'http://www.mlb.com/mlb/images/devices/ballpark/1920x1080/color/' + str(game['venue']['id']) + '.jpg'
+    # fanart = 'http://www.mlb.com/mlb/images/devices/ballpark/1920x1080/color/' + str(game['venue']['id']) + '.jpg'
+    fanart = 'http://cd-images.mlbstatic.com/stadium-backgrounds/color/light-theme/1920x1080/' + str(game['venue']['id']) + '.png'
+
 
     xbmc.log(str(game['gamePk']))
 
@@ -173,8 +160,9 @@ def create_game_listitem(game, game_day):
 
     # Create Playlist for the days recaps and condensed
     """
+    teams_stream = game['teams']['away']['team']['teamCode'] + game['teams']['home']['team']['teamCode']
     try:
-        recap_url, condensed_url = getHighlightLinks(teams_stream, stream_date)
+        recap_url, condensed_url = get_highlight_links(teams_stream, stream_date)
         global RECAP_PLAYLIST
         listitem = xbmcgui.ListItem(title, thumbnailImage=icon)
         listitem.setInfo(type="Video", infoLabels={"Title": title})
@@ -196,10 +184,10 @@ def stream_select(game_pk, stream_date):
     headers = {
         'User-Agent': UA_ANDROID
     }
-    r = requests.get(url,headers=headers, verify=VERIFY)
+    r = requests.get(url, headers=headers, verify=VERIFY)
     json_source = r.json()
 
-    stream_title = []
+    stream_title = ['Highlights']
     media_id = []
     free_game = []
     media_state = []
@@ -226,13 +214,13 @@ def stream_select(game_pk, stream_date):
         playback_scenario.append("HTTP_CLOUD_WIRED_60") 
     '''
     # All past games should have highlights
-    if len(stream_title) == 0 and stream_date > localToEastern():
+    if len(stream_title) == 0:
+        # and stream_date > localToEastern():
         msg = "No playable streams found."
         dialog = xbmcgui.Dialog()
         dialog.notification('Streams Not Found', msg, ICON, 5000, False)
+        xbmcplugin.setResolvedUrl(addon_handle, False, xbmcgui.ListItem())
         sys.exit()
-
-
     """        
     play_highlights = 0
     if len(media_state) > 0:
@@ -245,7 +233,7 @@ def stream_select(game_pk, stream_date):
             n = dialog.select('Choose Stream', stream_title)
             if n > -1:
                 if stream_title[n] == 'Highlights':
-                    recap, condensed, highlights = getHighlightLinks(teams_stream, stream_date)
+                    recap, condensed, highlights = get_highlight_links(teams_stream, stream_date)
                     if len(highlights) > 0:
                         play_highlights = 1
                         if QUALITY == 'Always Ask':
@@ -259,34 +247,44 @@ def stream_select(game_pk, stream_date):
         dialog = xbmcgui.Dialog()
         a = dialog.select('Choose Archive', archive_type)
         if a == 0:
-            # getHighlightLinks(teams_stream, stream_date)
+            # get_highlight_links(teams_stream, stream_date)
             play_highlights = 1
     """
     stream_url = ''
     play_highlights = False
     dialog = xbmcgui.Dialog()
     n = dialog.select('Choose Stream', stream_title)
-    if n > -1:
-        stream_url, headers = get_stream(media_id[n])
+    if n > -1 and stream_title[n] != 'Highlights':
+        account = Account()
+        stream_url, headers = account.get_stream(media_id[n-1])
 
     if '.m3u8' in stream_url:
         listitem = xbmcgui.ListItem(path=stream_url + headers)
         listitem.setMimeType("application/x-mpegURL")
         xbmcplugin.setResolvedUrl(handle=addon_handle, succeeded=True, listitem=listitem)
 
-    elif play_highlights:
+    elif stream_title[n] == 'Highlights':
+        highlights = get_highlights(json_source['highlights']['live']['items'])
+        if not highlights:
+            msg = "No videos found."
+            dialog = xbmcgui.Dialog()
+            dialog.notification('Highlights', msg, ICON, 5000, False)
+            xbmcplugin.setResolvedUrl(addon_handle, False, xbmcgui.ListItem())
+            sys.exit()
+
         highlight_name = ['Play All']
         highlight_url = ['junk']
+
         for i in range(0, len(highlights) - 1):
-            # highlights.append([clip_url,headline,icon])
-            highlight_url.append(highlights[i][0])
-            highlight_name.append(highlights[i][1])
+            xbmc.log(str(highlights[i]))
+            highlight_url.append(highlights[i]['url'])
+            highlight_name.append(highlights[i]['title'])
 
         dialog = xbmcgui.Dialog()
         a = dialog.select('Choose Highlight', highlight_name)
         if a > 0:
             # listitem = xbmcgui.ListItem(thumbnailImage=highlights[a-1][2], path=highlights[a-1][0])
-            listitem = xbmcgui.ListItem(path=createHighlightStream(highlight_url[a], bandwidth))
+            listitem = xbmcgui.ListItem(path=highlight_url[a])
             listitem.setInfo(type="Video", infoLabels={"Title": highlight_name[a]})
             xbmcplugin.setResolvedUrl(handle=addon_handle, succeeded=True, listitem=listitem)
         elif a == 0:
@@ -294,18 +292,33 @@ def stream_select(game_pk, stream_date):
             HIGHLIGHT_PLAYLIST.clear()
             xbmc.log(str(highlights))
 
-            listitem = xbmcgui.ListItem('dummy', thumbnailImage='')
+            listitem = xbmcgui.ListItem('dummy')
             listitem.setInfo(type="Video", infoLabels={"Title": 'dummy'})
             HIGHLIGHT_PLAYLIST.add('http://cdn.gravlab.net/sparse/v1d30/2013/nightskyHLS/Lapse2.m3u8', listitem)
 
             for i in range(0, len(highlights) - 1):
-                # highlights.append([clip_url,headline,icon])
-                listitem = xbmcgui.ListItem(highlights[i][1], thumbnailImage=highlights[i][2])
-                listitem.setInfo(type="Video", infoLabels={"Title": highlights[i][1]})
-                HIGHLIGHT_PLAYLIST.add(createHighlightStream(highlights[i][0], bandwidth), listitem)
+                xbmc.log(str(highlights[i]))
+                listitem = xbmcgui.ListItem(highlights[i]['url'])
+                #listitem.setArt(icon=highlights[i]['icon'])
+                listitem.setInfo(type="Video", infoLabels={"Title": highlights[i]['title']})
+                HIGHLIGHT_PLAYLIST.add(highlights[i]['url'], listitem)
     else:
-        # xbmcplugin.setResolvedUrl(addon_handle, False, listitem)
+        xbmcplugin.setResolvedUrl(addon_handle, False, xbmcgui.ListItem())
         xbmc.executebuiltin('Dialog.Close(all,true)')
+
+
+def get_highlights(items):
+    highlights = []
+    for item in items:
+        for playback in item['playbacks']:
+            if '_60' in playback['name']:
+                clip_url = playback['url']
+                break
+        headline = item['headline']
+        icon = item['image']['cuts'][0]['src']
+        highlights.append({'url': clip_url, 'title': headline, 'icon': icon})
+
+    return highlights
 
 
 def choose_archive(stream_title, media_id):
@@ -315,7 +328,7 @@ def choose_archive(stream_title, media_id):
 
     if a > -1:
         if archive_type[a].lower() != 'full game':
-            #recap, condensed, highlights = getHighlightLinks(teams_stream, stream_date)
+            #recap, condensed, highlights = get_highlight_links(teams_stream, stream_date)
             if archive_type[a].lower() == 'highlights':
                 play_highlights = 1
             elif archive_type[a].lower() == 'recap':
@@ -398,7 +411,7 @@ def getGamesForDate(stream_date):
     for gid, junk in match:
         pDialog.update(perc_increments, message='Downloading ' + gid)
         try:
-            recap, condensed, highlights = getHighlightLinks(None, stream_date, gid)
+            recap, condensed, highlights = get_highlight_links(None, stream_date, gid)
 
             if first_time_thru and QUALITY == 'Always Ask':
                 bandwidth = getStreamQuality(str(recap['url']))
@@ -428,35 +441,43 @@ def createHighlightStream(url, bandwidth):
     return url
 
 
-def getHighlightLinks(teams_stream, stream_date, gid=None, bandwidth=None):
+def get_highlight_links(teams_stream, stream_date):
     # global HIGHLIGHT_PLAYLIST
     # HIGHLIGHT_PLAYLIST.clear()
     stream_date = stringToDate(stream_date, "%Y-%m-%d")
     year = stream_date.strftime("%Y")
     month = stream_date.strftime("%m")
     day = stream_date.strftime("%d")
+    """
+    GET https://content.mlb.com/app/mlb/mobile/components/game/mlb/year_2018/month_03/day_02/gid_2018_03_02_miamlb_detmlb_1/media/mobile.xml HTTP/1.1
+    Host: content.mlb.com
+    Accept: */*
+    Cookie: fprt=bmlCWlZMVG90Skt3N1h5MnVmWXNaYU1VakxVPXwxNTIwMDQ0OTM2OTY3fGlwdD1lbWFpbC1wYXNzd29yZA%3D%3D; ipid=31998790
+    User-Agent: At%20Bat/26884 CFNetwork/894 Darwin/17.4.0
+    Accept-Language: en-us
+    Accept-Encoding: br, gzip, deflate
+    Connection: keep-alive
 
-    if gid is None:
-        away = teams_stream[:3].lower()
-        home = teams_stream[3:].lower()
-        url = 'http://gdx.mlb.com/components/game/mlb/year_' + year + '/month_' + month + '/day_' + day + '/gid_' + year + '_' + month + '_' + day + '_' + away + 'mlb_' + home + 'mlb_1/media/mobile.xml'
-    else:
-        url = 'http://gdx.mlb.com/components/game/mlb/year_' + year + '/month_' + month + '/day_' + day + '/gid_' + gid + '/media/mobile.xml'
+    """
 
-    req = urllib2.Request(url)
-    req.add_header('Connection', 'close')
-    req.add_header('User-Agent', UA_IPAD)
-    try:
-        response = urllib2.urlopen(req)
-        xml_data = response.read()
-        response.close()
-    except HTTPError as e:
-        xbmc.log('The server couldn\'t fulfill the request.')
-        xbmc.log('Error code: ', e.code)
-        sys.exit()
+    #if gid is None:
+    away = teams_stream[:3].lower()
+    home = teams_stream[3:].lower()
+    #url = 'http://gdx.mlb.com/components/game/mlb/year_' + year + '/month_' + month + '/day_' + day + '/gid_' + year + '_' + month + '_' + day + '_' + away + 'mlb_' + home + 'mlb_1/media/mobile.xml'
+    url = 'https://content.mlb.com/app/mlb/mobile/components/game/mlb/year_' + year + '/month_' + month + '/day_' + day + '/gid_' + year + '_' + month + '_' + day + '_' + away + 'mlb_' + home + 'mlb_1/media/mobile.xml'
+          #http://gdx.mlb.com/components/game/mlb/year_2018/month_03/day_02/gid_2018_03_02_atlmlb_nyamlb_1/media/mobile.xml
+    #'https://content.mlb.com/app/mlb/mobile/components/game/mlb/year_2018/month_03/day_02/gid_2018_03_02_miamlb_detmlb_1/media/mobile.xml'
+    #else:
+    #url = 'http://gdx.mlb.com/components/game/mlb/year_' + year + '/month_' + month + '/day_' + day + '/gid_' + gid + '/media/mobile.xml'
 
+    headers = {
+        'User-Agent': UA_IPAD
+    }
+
+    r = requests.get(url, headers=headers, verify=VERIFY)
+    xml_data = r.text
     match = re.compile('<media id="(.+?)"(.+?)<headline>(.+?)</headline>(.+?)<thumb type="22">(.+?)</thumb>(.+?)<url playback-scenario="HTTP_CLOUD_TABLET_60">(.+?)</url>', re.DOTALL).findall(xml_data)
-    bandwidth = find(QUALITY, '(', ' kbps)')
+    #bandwidth = find(QUALITY, '(', ' kbps)')
 
     recap = {}
     condensed = {}
@@ -547,212 +568,5 @@ def myTeamsGames():
         dialog.ok('Favorite Team Not Set', msg)
 
 
-def login():
-    # Check if username and password are provided
-    global USERNAME
-    if USERNAME == '':
-        dialog = xbmcgui.Dialog()
-        USERNAME = dialog.input('Please enter your username', type=xbmcgui.INPUT_ALPHANUM)
-        settings.setSetting(id='username', value=USERNAME)
-
-    global PASSWORD
-    if PASSWORD == '':
-        dialog = xbmcgui.Dialog()
-        PASSWORD = dialog.input('Please enter your password', type=xbmcgui.INPUT_ALPHANUM, option=xbmcgui.ALPHANUM_HIDE_INPUT)
-        settings.setSetting(id='password', value=PASSWORD)
-
-    if USERNAME != '' and PASSWORD != '':
-        settings.setSetting("old_username", USERNAME)
-        settings.setSetting("old_password", PASSWORD)
-
-        url = 'https://secure.mlb.com/pubajaxws/services/IdentityPointService'
-        headers = {
-            "SOAPAction": "http://services.bamnetworks.com/registration/identityPoint/identify",
-            "Content-type": "text/xml; charset=utf-8",
-            "User-Agent": "Dalvik/2.1.0 (Linux; U; Android 6.0.1; Hub Build/MHC19J)",
-            "Connection": "Keep-Alive"
-        }
-
-        payload = "<?xml version='1.0' encoding='UTF-8'?>"
-        payload += '<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
-        payload += '<SOAP-ENV:Body><tns:identityPoint_identify_request xmlns:tns="http://services.bamnetworks.com/registration/types/1.4">'
-        payload += '<tns:identification type="email-password"><tns:id xsi:nil="true"/>'
-        payload += '<tns:fingerprint xsi:nil="true"/>'
-        payload += '<tns:email>'
-        payload += '<tns:id xsi:nil="true"/>'
-        payload += '<tns:address>' + USERNAME + '</tns:address>'
-        payload += '</tns:email>'
-        payload += '<tns:password>' + PASSWORD + '</tns:password>'
-        payload += '<tns:mobilePhone xsi:nil="true"/>'
-        payload += '<tns:profileProperty xsi:nil="true"/>'
-        payload += '</tns:identification>'
-        payload += '</tns:identityPoint_identify_request>'
-        payload += '</SOAP-ENV:Body>'
-        payload += '</SOAP-ENV:Envelope>'
-
-        r = requests.post(url, headers=headers, data=payload, verify=VERIFY)
-
-        """
-        Bad username => <status><code>-1000</code><message> [Invalid credentials for identification] [com.bamnetworks.registration.types.exception.IdentificationException: Account doesn't exits]</message><exceptionClass>com.bamnetworks.registration.types.exception.IdentificationException</exceptionClass><detail type="identityPoint" field="exists" message="false" messageKey="identityPoint.exists" /><detail type="identityPoint" field="email-password" message="identification error on identity point of type email-password" messageKey="identityPoint.email-password" /></status>
-        Bad password => <status><code>-1000</code><message> [Invalid credentials for identification] [com.bamnetworks.registration.types.exception.IdentificationException: Invalid Password]</message><exceptionClass>com.bamnetworks.registration.types.exception.IdentificationException</exceptionClass><detail type="identityPoint" field="exists" message="true" messageKey="identityPoint.exists" /><detail type="identityPoint" field="email-password" message="identification error on identity point of type email-password" messageKey="identityPoint.email-password" /></status>
-        Good => <status><code>1</code><message>OK</message></status>
-        """
-        if find(r.text, '<code>', '</code>') != '1':
-            title = find(r.text, '<message> [','] [')
-            msg = find(r.text, 'com.bamnetworks.registration.types.exception.IdentificationException: ', ']</message>')
-            dialog = xbmcgui.Dialog()
-            dialog.ok(title, msg)
-            sys.exit()
-        else:
-            save_cookies(r.cookies)
 
 
-def feature_service():
-    url = 'https://secure.mlb.com/pubajaxws/services/FeatureService'
-    headers = {
-        "SOAPAction": "http://services.bamnetworks.com/registration/feature/findEntitledFeatures",
-        "Content-type": "text/xml; charset=utf-8",
-        "User-Agent": "Dalvik/2.1.0 (Linux; U; Android 6.0.1; Hub Build/MHC19J)",
-        "Connection": "Keep-Alive"
-    }
-
-    payload = "<?xml version='1.0' encoding='UTF-8'?>"
-    payload += '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">'
-    payload += '<soapenv:Header />'
-    payload += '<soapenv:Body>'
-    payload += '<feature_findEntitled_request xmlns="http://services.bamnetworks.com/registration/types/1.6">'
-
-    if settings.getSetting("fingerprint") != '' and settings.getSetting("session_key") != '':
-        payload += "<identification type='fingerprint'>"
-        payload += '<id></id>' # ipid from cookies
-        payload += '<fingerprint>' + settings.getSetting("fingerprint") + '</fingerprint>'
-        payload += "<signOnRestriction type='mobileApp'>"
-        payload += '<location>ANDROID_21d994bd-ebb1-4253-bcab-3550e7882294</location>'
-        payload += '<sessionKey>' + settings.getSetting("session_key") + '</sessionKey>'
-    else:
-        payload += "<identification type='email-password'>"
-        payload += '<email><address>' + USERNAME + '</address></email>'
-        payload += '<password>' + PASSWORD + '</password>'
-        payload += '<signOnRestriction type="mobileApp">'
-        payload += '<location>ANDROID_21d994bd-ebb1-4253-bcab-3550e7882294</location>'
-
-    payload += '</signOnRestriction>'
-    payload += '</identification>'
-    payload += '<featureContextName>MLBTV2017.INAPPPURCHASE</featureContextName>'
-    payload += '</feature_findEntitled_request>'
-    payload += '</soapenv:Body>'
-    payload += '</soapenv:Envelope>'
-
-    r = requests.post(url, headers=headers, data=payload, verify=VERIFY)
-    if r.status_code == 200:
-        fingerprint = find(r.text, '<fingerprint>', '</fingerprint>')
-        session_key = find(r.text, '<sessionKey>', '</sessionKey>')
-        settings.setSetting("fingerprint", fingerprint)
-        settings.setSetting("session_key", session_key)
-        save_cookies(r.cookies)
-
-
-def check_cookies():
-    perform_login = True
-    if os.path.isfile(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp')):
-        fingerprint_valid = False
-        ipid_valid = False
-        cj = cookielib.LWPCookieJar(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'))
-        cj.load(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'),ignore_discard=True)
-
-        for cookie in cj:
-            if cookie.name == "fingerprint" and not cookie.is_expired():
-                fingerprint_valid = True
-            elif cookie.name == "ipid" and not cookie.is_expired():
-                ipid_valid = True
-
-        if fingerprint_valid and ipid_valid:
-            perform_login = False
-
-    if perform_login:
-        login()
-
-
-def media_entitlement():
-    check_cookies()
-    cookies = requests.utils.dict_from_cookiejar(load_cookies())
-    url = 'https://media-entitlement.mlb.com/jwt'
-    url += '?ipid=' + cookies['ipid']
-    url += '&fingerprint=' + cookies['fprt']
-    url += '&os=Android'
-    url += '&appname=AtBat'
-    headers = {
-        'x-api-key': 'arBv5yTc359fDsqKdhYC41NZnIFZqEkY5Wyyn9uA',
-        'Cache-Control': 'no-cache',
-        'Connection': 'Keep-Alive',
-        'User-Agent': 'okhttp/3.9.0'
-    }
-
-    r = requests.get(url, headers=headers, cookies=load_cookies(), verify=VERIFY)
-
-    return r.text
-
-
-def access_token():
-    url = 'https://edge.bamgrid.com/token'
-    headers = {
-        'Authorization': 'Bearer bWxidHYmYW5kcm9pZCYxLjAuMA.6LZMbH2r--rbXcgEabaDdIslpo4RyZrlVfWZhsAgXIk',
-        'Accept': 'application/json',
-        'X-BAMSDK-Version': 'v3.0.0-beta2-3',
-        'X-BAMSDK-Platform': 'Android',
-        'User-Agent': 'BAMSDK/3.0.0-beta2 (mlbaseball-7993996e; v2.0/v3.0.1; android; tv) WeTek Hub (wetekhub-user 6.0.1 MHC19J 20170612 release-keys; Linux; 6.0.1; API 23)',
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Connection': 'Keep-Alive',
-        'Accept-Encoding': 'gzip'
-    }
-
-    payload = 'grant_type=urn:ietf:params:oauth:grant-type:token-exchange'
-    payload += '&subject_token=' + media_entitlement()
-    payload += '&subject_token_type=urn:ietf:params:oauth:token-type:jwt'
-    payload += '&platform=android-tv'
-
-    r = requests.post(url, headers=headers, data=payload, cookies=load_cookies(), verify=VERIFY)
-    access_token = r.json()['access_token']
-    # refresh_toekn = r.json()['refresh_token']
-    return access_token
-
-
-def get_stream(media_id):
-    auth = access_token()
-    url = 'https://edge.svcs.mlb.com/media/' + media_id + '/scenarios/android'
-    headers = {
-        'Accept': 'application/vnd.media-service+json; version=2',
-        'Authorization': auth,
-        'X-BAMSDK-Version': 'v3.0.0-beta2-3',
-        'X-BAMSDK-Platform': 'Android',
-        'User-Agent': 'BAMSDK/3.0.0-beta2 (mlbaseball-7993996e; v2.0/v3.0.1; android; tv) WeTek Hub (wetekhub-user 6.0.1 MHC19J 20170612 release-keys; Linux; 6.0.1; API 23)'
-    }
-
-    r = requests.get(url, headers=headers, cookies=load_cookies(), verify=VERIFY)
-    if r.status_code != 200:
-        dialog = xbmcgui.Dialog()
-        title = "Error Occured"
-        msg = ""
-        for item in r.json()['errors']:
-            msg += item['code'] + '\n'
-        dialog.notification(title, msg, ICON, 5000, False)
-        sys.exit()
-
-    stream_url = r.json()['stream']['complete']
-    cookies = requests.utils.dict_from_cookiejar(load_cookies())
-    headers = '|User-Agent=MLB.TV/3.5.0 (Linux;Android 6.0.1) ExoPlayerLib/2.5.4'
-    headers += '&Authorization=' + auth
-    headers += '&Cookie='
-    for key, value in cookies.iteritems():
-        headers += key + '=' + value + '; '
-
-    return stream_url, headers
-
-
-def logout():
-    if os.path.isfile(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp')):
-        os.remove(os.path.join(ADDON_PATH_PROFILE, 'cookies.lwp'))
-
-    dialog = xbmcgui.Dialog()
-    title = "Logout Successful"
-    dialog.notification(title, 'Logout completed successfully', ICON, 5000, False)

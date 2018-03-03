@@ -65,7 +65,11 @@ elif mode == 200:
         sys.exit()
 
 elif mode == 400:
-    logout()
+    account = Account()
+    account.logout()
+    dialog = xbmcgui.Dialog()
+    title = "Logout Successful"
+    dialog.notification(title, 'Logout completed successfully', ICON, 5000, False)
 
 elif mode == 500:
     myTeamsGames()
