@@ -252,6 +252,7 @@ def stream_select(game_pk, stream_date):
     """
     stream_url = ''
     play_highlights = False
+
     dialog = xbmcgui.Dialog()
     n = dialog.select('Choose Stream', stream_title)
     if n > -1 and stream_title[n] != 'Highlights':
@@ -259,9 +260,7 @@ def stream_select(game_pk, stream_date):
         stream_url, headers = account.get_stream(media_id[n-1])
 
     if '.m3u8' in stream_url:
-        listitem = xbmcgui.ListItem(path=stream_url + headers)
-        listitem.setMimeType("application/x-mpegURL")
-        xbmcplugin.setResolvedUrl(handle=addon_handle, succeeded=True, listitem=listitem)
+        play_stream(stream_url, headers)
 
     elif stream_title[n] == 'Highlights':
         highlights = get_highlights(json_source['highlights']['live']['items'])
@@ -283,10 +282,10 @@ def stream_select(game_pk, stream_date):
         dialog = xbmcgui.Dialog()
         a = dialog.select('Choose Highlight', highlight_name)
         if a > 0:
-            # listitem = xbmcgui.ListItem(thumbnailImage=highlights[a-1][2], path=highlights[a-1][0])
-            listitem = xbmcgui.ListItem(path=highlight_url[a])
-            listitem.setInfo(type="Video", infoLabels={"Title": highlight_name[a]})
-            xbmcplugin.setResolvedUrl(handle=addon_handle, succeeded=True, listitem=listitem)
+            #listitem = xbmcgui.ListItem(path=highlight_url[a])
+            #listitem.setInfo(type="Video", infoLabels={"Title": highlight_name[a]})
+            #xbmcplugin.setResolvedUrl(handle=addon_handle, succeeded=True, listitem=listitem)
+            play_stream(highlight_url[a], '')
         elif a == 0:
             HIGHLIGHT_PLAYLIST = xbmc.PlayList(xbmc.PLAYLIST_VIDEO)
             HIGHLIGHT_PLAYLIST.clear()
@@ -305,6 +304,25 @@ def stream_select(game_pk, stream_date):
     else:
         xbmcplugin.setResolvedUrl(addon_handle, False, xbmcgui.ListItem())
         xbmc.executebuiltin('Dialog.Close(all,true)')
+
+
+def play_stream(stream_url, headers):
+    listitem = xbmcgui.ListItem()
+    """    
+    if xbmc.getCondVisibility('System.HasAddon(inputstream.adaptive)'):
+        xbmc.log("USING INPUTSTREAM ADAPTIVE!!!")
+        listitem.setProperty('inputstreamaddon', 'inputstream.adaptive')
+        listitem.setProperty('inputstream.adaptive.manifest_type', 'hls')
+        listitem.setProperty('inputstream.adaptive.stream_headers', headers)
+        listitem.setProperty('inputstream.adaptive.license_key', headers)
+    else:
+        xbmc.log("NOT USING INPUTSTREAM ADAPTIVE!!!")
+    """
+    stream_url += headers
+
+    listitem.setPath(stream_url)
+    listitem.setMimeType("application/x-mpegURL")
+    xbmcplugin.setResolvedUrl(handle=addon_handle, succeeded=True, listitem=listitem)
 
 
 def get_highlights(items):
