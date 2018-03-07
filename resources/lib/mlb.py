@@ -282,25 +282,19 @@ def stream_select(game_pk, stream_date):
         dialog = xbmcgui.Dialog()
         a = dialog.select('Choose Highlight', highlight_name)
         if a > 0:
-            #listitem = xbmcgui.ListItem(path=highlight_url[a])
-            #listitem.setInfo(type="Video", infoLabels={"Title": highlight_name[a]})
-            #xbmcplugin.setResolvedUrl(handle=addon_handle, succeeded=True, listitem=listitem)
             play_stream(highlight_url[a], '')
         elif a == 0:
-            HIGHLIGHT_PLAYLIST = xbmc.PlayList(xbmc.PLAYLIST_VIDEO)
-            HIGHLIGHT_PLAYLIST.clear()
-            xbmc.log(str(highlights))
-
-            listitem = xbmcgui.ListItem('dummy')
-            listitem.setInfo(type="Video", infoLabels={"Title": 'dummy'})
-            HIGHLIGHT_PLAYLIST.add('http://cdn.gravlab.net/sparse/v1d30/2013/nightskyHLS/Lapse2.m3u8', listitem)
+            playlist = xbmc.PlayList(xbmc.PLAYLIST_VIDEO)
+            playlist.clear()
 
             for i in range(0, len(highlights) - 1):
-                xbmc.log(str(highlights[i]))
                 listitem = xbmcgui.ListItem(highlights[i]['url'])
-                #listitem.setArt(icon=highlights[i]['icon'])
+                # listitem.setArt(icon=highlights[i]['icon'])
                 listitem.setInfo(type="Video", infoLabels={"Title": highlights[i]['title']})
-                HIGHLIGHT_PLAYLIST.add(highlights[i]['url'], listitem)
+                playlist.add(highlights[i]['url'], listitem)
+
+            xbmcplugin.setResolvedUrl(handle=addon_handle, succeeded=True, listitem=playlist[0])
+
     else:
         xbmcplugin.setResolvedUrl(addon_handle, False, xbmcgui.ListItem())
         xbmc.executebuiltin('Dialog.Close(all,true)')
@@ -460,8 +454,6 @@ def createHighlightStream(url, bandwidth):
 
 
 def get_highlight_links(teams_stream, stream_date):
-    # global HIGHLIGHT_PLAYLIST
-    # HIGHLIGHT_PLAYLIST.clear()
     stream_date = stringToDate(stream_date, "%Y-%m-%d")
     year = stream_date.strftime("%Y")
     month = stream_date.strftime("%m")
