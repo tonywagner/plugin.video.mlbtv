@@ -39,7 +39,7 @@ elif mode == 101:
 
 
 elif mode == 104:
-    stream_select(game_pk, stream_date)
+    stream_select(game_pk)
 
 elif mode == 105:
     # Yesterday's Games

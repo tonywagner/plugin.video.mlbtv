@@ -179,7 +179,7 @@ def create_game_listitem(game, game_day):
     add_stream(name, title, game_pk, icon, fanart, info, video_info, audio_info, stream_date)
 
 
-def stream_select(game_pk, stream_date):
+def stream_select(game_pk):
     url = 'https://statsapi.mlb.com/api/v1/game/' + game_pk + '/content'
     headers = {
         'User-Agent': UA_ANDROID
@@ -204,15 +204,6 @@ def stream_select(game_pk, stream_date):
             # content_id.append(item['guid'])
             # playback_scenario.append(str(item['playback_scenario']))
 
-    '''
-    elif str(item['playback_scenario']) == "FLASH_2500K_1280X720" and item['type'] != 'condensed_game':
-        title = str(item['type']).title()
-        title = title.replace('_', ' ')
-        stream_title.append(title + " ("+item['display']+")")
-        media_state.append(item['state'])             
-        content_id.append(item['id'])  
-        playback_scenario.append("HTTP_CLOUD_WIRED_60") 
-    '''
     # All past games should have highlights
     if len(stream_title) == 0:
         # and stream_date > localToEastern():
@@ -221,37 +212,8 @@ def stream_select(game_pk, stream_date):
         dialog.notification('Streams Not Found', msg, ICON, 5000, False)
         xbmcplugin.setResolvedUrl(addon_handle, False, xbmcgui.ListItem())
         sys.exit()
-    """        
-    play_highlights = 0
-    if len(media_state) > 0:
-        if media_state[0] == 'MEDIA_ARCHIVE':
-            stream_url = choose_archive(stream_title, media_id)
-        else:
-            # Add Highlights option to live games
-            #stream_title.insert(0, 'Highlights')
-            dialog = xbmcgui.Dialog()
-            n = dialog.select('Choose Stream', stream_title)
-            if n > -1:
-                if stream_title[n] == 'Highlights':
-                    recap, condensed, highlights = get_highlight_links(teams_stream, stream_date)
-                    if len(highlights) > 0:
-                        play_highlights = 1
-                        if QUALITY == 'Always Ask':
-                            bandwidth = getStreamQuality(str(highlights[0][0]))
-                        else:
-                            bandwidth = find(QUALITY, '(', ' kbps)')
-                else:
-                    stream_url = get_stream(media_id[n])
-    else:
-        archive_type = ['Highlights']
-        dialog = xbmcgui.Dialog()
-        a = dialog.select('Choose Archive', archive_type)
-        if a == 0:
-            # get_highlight_links(teams_stream, stream_date)
-            play_highlights = 1
-    """
+
     stream_url = ''
-    play_highlights = False
 
     dialog = xbmcgui.Dialog()
     n = dialog.select('Choose Stream', stream_title)
@@ -263,41 +225,44 @@ def stream_select(game_pk, stream_date):
         play_stream(stream_url, headers)
 
     elif stream_title[n] == 'Highlights':
-        highlights = get_highlights(json_source['highlights']['live']['items'])
-        if not highlights:
-            msg = "No videos found."
-            dialog = xbmcgui.Dialog()
-            dialog.notification('Highlights', msg, ICON, 5000, False)
-            xbmcplugin.setResolvedUrl(addon_handle, False, xbmcgui.ListItem())
-            sys.exit()
-
-        highlight_name = ['Play All']
-        highlight_url = ['junk']
-
-        for i in range(0, len(highlights) - 1):
-            xbmc.log(str(highlights[i]))
-            highlight_url.append(highlights[i]['url'])
-            highlight_name.append(highlights[i]['title'])
-
-        dialog = xbmcgui.Dialog()
-        a = dialog.select('Choose Highlight', highlight_name)
-        if a > 0:
-            play_stream(highlight_url[a], '')
-        elif a == 0:
-            playlist = xbmc.PlayList(xbmc.PLAYLIST_VIDEO)
-            playlist.clear()
-
-            for i in range(0, len(highlights) - 1):
-                listitem = xbmcgui.ListItem(highlights[i]['url'])
-                # listitem.setArt(icon=highlights[i]['icon'])
-                listitem.setInfo(type="Video", infoLabels={"Title": highlights[i]['title']})
-                playlist.add(highlights[i]['url'], listitem)
-
-            xbmcplugin.setResolvedUrl(handle=addon_handle, succeeded=True, listitem=playlist[0])
+        highlight_select_stream(json_source['highlights']['live']['items'])
 
     else:
         xbmcplugin.setResolvedUrl(addon_handle, False, xbmcgui.ListItem())
         xbmc.executebuiltin('Dialog.Close(all,true)')
+
+
+def highlight_select_stream(json_source):
+    highlights = get_highlights(json_source)
+    if not highlights:
+        msg = "No videos found."
+        dialog = xbmcgui.Dialog()
+        dialog.notification('Highlights', msg, ICON, 5000, False)
+        xbmcplugin.setResolvedUrl(addon_handle, False, xbmcgui.ListItem())
+        sys.exit()
+
+    highlight_name = ['Play All']
+    highlight_url = ['junk']
+
+    for clip in highlights:
+        highlight_name.append(clip['title'])
+        highlight_url.append(clip['url'])
+
+    dialog = xbmcgui.Dialog()
+    a = dialog.select('Choose Highlight', highlight_name)
+    if a > 0:
+        play_stream(highlight_url[a], '')
+    elif a == 0:
+        playlist = xbmc.PlayList(xbmc.PLAYLIST_VIDEO)
+        playlist.clear()
+
+        for clip in highlights:
+            listitem = xbmcgui.ListItem(clip['url'])
+            listitem.setArt({'icon': clip['icon'], 'thumb': clip['icon'], 'fanart': FANART})
+            listitem.setInfo(type="Video", infoLabels={"Title": clip['title']})
+            playlist.add(clip['url'], listitem)
+
+        xbmcplugin.setResolvedUrl(handle=addon_handle, succeeded=True, listitem=playlist[0])
 
 
 def play_stream(stream_url, headers):
@@ -321,7 +286,7 @@ def play_stream(stream_url, headers):
 
 def get_highlights(items):
     highlights = []
-    for item in items:
+    for item in reversed(items):
         for playback in item['playbacks']:
             if '_60' in playback['name']:
                 clip_url = playback['url']
@@ -331,57 +296,6 @@ def get_highlights(items):
         highlights.append({'url': clip_url, 'title': headline, 'icon': icon})
 
     return highlights
-
-
-def choose_archive(stream_title, media_id):
-    archive_type = ['Highlights', 'Recap', 'Condensed', 'Full Game']
-    dialog = xbmcgui.Dialog()
-    a = dialog.select('Choose Archive', archive_type)
-
-    if a > -1:
-        if archive_type[a].lower() != 'full game':
-            #recap, condensed, highlights = get_highlight_links(teams_stream, stream_date)
-            if archive_type[a].lower() == 'highlights':
-                play_highlights = 1
-            elif archive_type[a].lower() == 'recap':
-                if 'url' in recap:
-                    stream_url = recap['url']
-                else:
-                    dialog = xbmcgui.Dialog()
-                    dialog.ok('Recap Not Available', 'The recap for this game is not yet available. \nPlease check back later.')
-            else:
-                if 'url' in condensed:
-                    stream_url = condensed['url']
-                else:
-                    dialog = xbmcgui.Dialog()
-                    dialog.ok('Condensed Game Not Available', 'The condensed game is not yet available. \nPlease check back later.')
-            """                    
-            if QUALITY == 'Always Ask' and ((len(highlights) > 0 and play_highlights == 1) or stream_url != ''):
-                bandwidth = getStreamQuality(str(highlights[0][0]))
-            else:
-                bandwidth = find(QUALITY, '(', ' kbps)')
-            """
-            stream_url = createHighlightStream(stream_url, bandwidth)
-        else:
-            dialog = xbmcgui.Dialog()
-            n = dialog.select('Choose Stream', stream_title)
-            if n > -1:
-                # stream_url, media_auth = fetchStream(content_id[n], event_id, playback_scenario[n])
-                # stream_url = createFullGameStream(stream_url, media_auth, media_state[n])
-                stream_url = get_stream(media_id[n])
-
-        return stream_url
-
-
-def playAllHighlights():
-    stream_title = ['Recap', 'Condensed']
-    dialog = xbmcgui.Dialog()
-    n = dialog.select('View All', stream_title)
-
-    if n == 0:
-        xbmc.Player().play(RECAP_PLAYLIST)
-    elif n == 1:
-        xbmc.Player().play(EXTENDED_PLAYLIST)
 
 
 def getGamesForDate(stream_date):
@@ -513,40 +427,7 @@ def get_highlight_links(teams_stream, stream_date):
     return recap, condensed, highlights
 
 
-def createFullGameStream(stream_url, media_auth, media_state):
-    # SD (800 kbps)|SD (1600 kbps)|HD (3000 kbps)|HD (5000 kbps)
-    bandwidth = ''
-    bandwidth = find(QUALITY, '(', ' kbps)')
-
-    if QUALITY == 'Always Ask':
-        bandwidth = getStreamQuality(stream_url)
-
-    # Only set bandwidth if it's explicitly set
-    if bandwidth != '':
-        if media_state == 'MEDIA_ARCHIVE':
-            # ARCHIVE
-            # stream_url = stream_url.replace(MASTER_FILE_TYPE, bandwidth+'K/'+bandwidth+'_complete_fwv2-trimmed.m3u8')
-            stream_url = stream_url.replace(MASTER_FILE_TYPE, bandwidth + 'K/' + bandwidth + '_complete-trimmed.m3u8')
-        elif media_state == 'MEDIA_ON':
-            # LIVE
-            # stream_url = stream_url.replace(MASTER_FILE_TYPE, bandwidth+'K/'+bandwidth+'_slide_fwv2.m3u8')
-            stream_url = stream_url.replace(MASTER_FILE_TYPE, bandwidth + 'K/' + bandwidth + '_complete.m3u8')
-
-    # CDN
-    akc_url = 'akc.mlb.com'
-    l3c_url = 'l3c.mlb.com'
-    if CDN == 'Akamai' and akc_url not in stream_url:
-        stream_url = stream_url.replace(l3c_url, akc_url)
-    elif CDN == 'Level 3' and l3c_url not in stream_url:
-        stream_url = stream_url.replace(akc_url, l3c_url)
-
-    # stream_url = stream_url + '|User-Agent='+UA_IPAD+'&Cookie='+media_auth
-    stream_url = stream_url + '|User-Agent=' + UA_PS4 + '&Cookie=' + media_auth
-
-    return stream_url
-
-
-def myTeamsGames():
+def my_teams_games():
     if FAV_TEAM != 'None':
         fav_team_id = getFavTeamId()
 
@@ -558,15 +439,11 @@ def myTeamsGames():
         season = start_date.strftime("%Y")
 
         url = 'http://mlb.mlb.com/lookup/named.schedule_vw.bam?end_date=' + end_date + '&season=' + season + '&team_id=' + fav_team_id + '&start_date=' + start_date
-        # ${expand},schedule.ticket&${optionalParams}'
         req = urllib2.Request(url)
         req.add_header('User-Agent', UA_IPAD)
         response = urllib2.urlopen(req)
         json_source = json.load(response)
         response.close()
-
-        # <row game_pk="469406" record_source="S" game_id="2016/03/01/pitmlb-detmlb-1" game_type="S" month="3" game_date="2016-03-01T00:00:00" month_abbrev="Mar" month_full="March" day="3" day_abbrev="Tue" game_day="Tuesday" double_header_sw="N" gameday_sw="Y" interleague_sw="" game_nbr="1" series_nbr="1" series_game_nbr="1" game_time_et="2016-03-01T13:05:00" if_necessary="N" scheduled_innings="9" inning="9" top_inning_sw="N" away_team_id="134" away_all_star_sw="N" away_team_file_code="pit" away_team_city="Pittsburgh" away_team_full="Pittsburgh Pirates" away_team_brief="Pirates" away_team_abbrev="PIT" away_league_id="104" away_league="NL" away_sport_code="mlb" away_parent_id="" away_parent_org="" away_split_squad="N" home_team_id="116" home_all_star_sw="N" home_team_file_code="det" home_team_city="Detroit" home_team_full="Detroit Tigers" home_team_brief="Tigers" home_team_abbrev="DET" home_league_id="103" home_league="AL" home_sport_code="mlb" home_parent_id="" home_parent_org="" home_split_squad="N" venue_id="2511" venue="Joker Marchant Stadium" venue_short="" venue_city="Lakeland" venue_state="FL" venue_country="USA" milbtv_sw="N" home_tunein="" away_tunein="" game_time_local="3/1/2016 1:05:00 PM" time_zone_local="EST" game_time_home="3/1/2016 1:05:00 PM" time_zone_home="EST" game_time_away="3/1/2016 1:05:00 PM" time_zone_away="EST" resumed_on="" resumed_at="" resumed_from="" rescheduled_to="" rescheduled_at="" rescheduled_from="" game_status_ind="F" game_status_text="Final" reason="" home_probable_id="571510" home_probable="Boyd, Matt" home_probable_wl="0-0" home_probable_era="-.--" away_probable_id="543456" away_probable="Lobstein, Kyle" away_probable_wl="0-0" away_probable_era="-.--" home_team_wl="0-1" away_team_wl="1-0" home_score="2" away_score="4" home_result="L" away_result="W" win_pitcher_id="543746" win_pitcher="Scahill, Rob" win_pitcher_wl="1-0" win_pitcher_era="18.00" loss_pitcher_id="434137" loss_pitcher="Kensing, Logan" loss_pitcher_wl="0-1" loss_pitcher_era="18.00" editorial_stats_type="S" editorial_stats_season="2016"/>
-        match = re.compile('<row (.+?)/">').findall(link)
 
         for game_row in match:
 

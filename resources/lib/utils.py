@@ -20,7 +20,7 @@ class Util:
         cj = cookielib.LWPCookieJar()
         try:
             cj.load(cookie_file, ignore_discard=True)
-        except cookielib.IOError:
+        except:
             pass
         for c in cookiejar:
             args = dict(vars(c).items())
@@ -35,7 +35,7 @@ class Util:
         cj = cookielib.LWPCookieJar()
         try:
             cj.load(cookie_file, ignore_discard=True)
-        except cookielib.IOError:
+        except:
             pass
 
         return cj
