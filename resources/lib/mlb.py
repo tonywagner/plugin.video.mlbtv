@@ -135,7 +135,10 @@ def create_game_listitem(game, game_day):
     if NO_SPOILERS == '1' or (NO_SPOILERS == '2' and fav_game) or (NO_SPOILERS == '3' and game_day == localToEastern()) or (NO_SPOILERS == '4' and game_day < localToEastern()) or game['status']['abstractGameState'] == 'Preview':
         name = game_time + ' ' + away_team + ' at ' + home_team
     else:
-        name = game_time + ' ' + away_team + ' ' + colorString(str(game['linescore']['teams']['away']['runs']), SCORE_COLOR) + ' at ' + home_team + ' ' + colorString(str(game['linescore']['teams']['home']['runs']), SCORE_COLOR)
+        name = game_time + ' ' + away_team
+        if 'linescore' in game: name += ' ' + colorString(str(game['linescore']['teams']['away']['runs']), SCORE_COLOR)
+        name += ' at ' + home_team
+        if 'linescore' in game: name += ' ' + colorString(str(game['linescore']['teams']['home']['runs']), SCORE_COLOR)
 
     name = name.encode('utf-8')
     if fav_game:
@@ -376,7 +379,7 @@ def get_highlight_links(teams_stream, stream_date):
     GET https://content.mlb.com/app/mlb/mobile/components/game/mlb/year_2018/month_03/day_02/gid_2018_03_02_miamlb_detmlb_1/media/mobile.xml HTTP/1.1
     Host: content.mlb.com
     Accept: */*
-    Cookie: fprt=bmlCWlZMVG90Skt3N1h5MnVmWXNaYU1VakxVPXwxNTIwMDQ0OTM2OTY3fGlwdD1lbWFpbC1wYXNzd29yZA%3D%3D; ipid=31998790
+    Cookie: fprt= ipid=
     User-Agent: At%20Bat/26884 CFNetwork/894 Darwin/17.4.0
     Accept-Language: en-us
     Accept-Encoding: br, gzip, deflate
