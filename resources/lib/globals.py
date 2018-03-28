@@ -345,7 +345,7 @@ def scoreUpdates():
     t.start() 
 
 def getFavTeamColor():
-    #Hex code taken from http://teamcolors.arc90.com/    
+    #Hex code taken from http://jim-nielsen.com/teamcolors/    
     team_colors = {'Arizona Diamondbacks':'FFA71930',
                 'Atlanta Braves':'FFCE1141',
                 'Baltimore Orioles':'FFDF4601',
