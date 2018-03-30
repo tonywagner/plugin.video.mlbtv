@@ -81,7 +81,8 @@ def create_game_listitem(game, game_day):
         home_team = colorString(home_team, getFavTeamColor())
 
     game_time = ''
-    if game['status']['abstractGameState'] == 'Preview':
+    #if game['status']['abstractGameState'] == 'Preview':
+    if game['status']['detailedState'] == 'Scheduled':
         game_time = game['gameDate']
         game_time = stringToDate(game_time, "%Y-%m-%dT%H:%M:%SZ")
         game_time = UTCToLocal(game_time)
@@ -94,7 +95,8 @@ def create_game_listitem(game, game_day):
         game_time = colorString(game_time, UPCOMING)
 
     else:
-        game_time = game['status']['abstractGameState']
+        #game_time = game['status']['abstractGameState']
+        game_time = game['status']['detailedState']
 
         if game_time == 'Final':
             game_time = colorString(game_time, FINAL)
