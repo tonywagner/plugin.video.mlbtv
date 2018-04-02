@@ -1,6 +1,7 @@
 import sys, xbmc, xbmcaddon, xbmcgui
 import requests
 from utils import Util
+from resources.lib.globals import *
 
 
 class Account:
@@ -148,21 +149,24 @@ class Account:
 
     def access_token(self):
         url = 'https://edge.bamgrid.com/token'
+
         headers = {
-            'Authorization': 'Bearer bWxidHYmYW5kcm9pZCYxLjAuMA.6LZMbH2r--rbXcgEabaDdIslpo4RyZrlVfWZhsAgXIk',
-            'Accept': 'application/json',
-            'X-BAMSDK-Version': 'v3.0.0-beta2-3',
-            'X-BAMSDK-Platform': 'Android',
-            'User-Agent': 'BAMSDK/3.0.0-beta2 (mlbaseball-7993996e; v2.0/v3.0.1; android; tv) WeTek Hub (wetekhub-user 6.0.1 MHC19J 20170612 release-keys; Linux; 6.0.1; API 23)',
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Connection': 'Keep-Alive',
-            'Accept-Encoding': 'gzip'
+            'Origin': 'https://www.mlb.com',
+            'x-bamsdk-version': '3.0',
+            'authorization': 'Bearer bWxidHYmYnJvd3NlciYxLjAuMA.VfmGMGituFykTR89LFD-Gr5G-lwJ9QbHfXXNBMkuM9M',
+            'content-type': 'application/x-www-form-urlencoded',
+            'x-bamsdk-platform': 'windows',
+            'accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36',
+            'Referer': 'https://www.mlb.com/tv/g529459/v8539eb7d-e8de-4b8d-84aa-d5026e632f36',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Language': 'en-US,en;q=0.9'
         }
 
         payload = 'grant_type=urn:ietf:params:oauth:grant-type:token-exchange'
         payload += '&subject_token=' + self.media_entitlement()
         payload += '&subject_token_type=urn:ietf:params:oauth:token-type:jwt'
-        payload += '&platform=android-tv'
+        payload += '&platform=browser'
 
         r = requests.post(url, headers=headers, data=payload, cookies=self.util.load_cookies(), verify=self.verify)
         access_token = r.json()['access_token']
@@ -171,13 +175,13 @@ class Account:
 
     def get_stream(self, media_id):
         auth = self.access_token()
-        url = 'https://edge.svcs.mlb.com/media/' + media_id + '/scenarios/android'
+        url = 'https://edge.svcs.mlb.com/media/' + media_id + '/scenarios/browser~csai'
         headers = {
             'Accept': 'application/vnd.media-service+json; version=2',
             'Authorization': auth,
-            'X-BAMSDK-Version': 'v3.0.0-beta2-3',
-            'X-BAMSDK-Platform': 'Android',
-            'User-Agent': 'BAMSDK/3.0.0-beta2 (mlbaseball-7993996e; v2.0/v3.0.1; android; tv) WeTek Hub (wetekhub-user 6.0.1 MHC19J 20170612 release-keys; Linux; 6.0.1; API 23)'
+            'X-BAMSDK-Version': '3.0',
+            'X-BAMSDK-Platform': 'windows',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36'
         }
 
         r = requests.get(url, headers=headers, cookies=self.util.load_cookies(), verify=self.verify)
@@ -191,7 +195,7 @@ class Account:
             sys.exit()
 
         stream_url = r.json()['stream']['complete']
-        headers = '|User-Agent=MLB.TV/3.5.0 (Linux;Android 6.0.1) ExoPlayerLib/2.5.4'
+        headers = '|User-Agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36'
         headers += '&Authorization=' + auth
         headers += '&Cookie='
         cookies = requests.utils.dict_from_cookiejar(self.util.load_cookies())
