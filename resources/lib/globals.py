@@ -1,6 +1,5 @@
 # coding=utf-8
 import sys
-import xbmc, xbmcplugin, xbmcgui, xbmcaddon
 import re, os, time
 import calendar
 import pytz
@@ -14,7 +13,7 @@ from datetime import date, datetime, timedelta
 from urllib2 import URLError, HTTPError
 #from PIL import Image
 from cStringIO import StringIO
-
+import xbmc, xbmcplugin, xbmcgui, xbmcaddon
 
 addon_handle = int(sys.argv[1])
 
