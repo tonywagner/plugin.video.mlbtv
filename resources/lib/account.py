@@ -9,6 +9,7 @@ class Account:
     username = ''
     password = ''
     session_key = ''
+    icon = os.path.join(addon.getAddonInfo('path'), 'icon.png')
     verify = False
 
     def __init__(self):
@@ -173,9 +174,37 @@ class Account:
         # refresh_toekn = r.json()['refresh_token']
         return access_token
 
-    def get_stream(self, media_id):
+    def get_playback_url(self, content_id):
         auth = self.access_token()
-        url = 'https://edge.svcs.mlb.com/media/' + media_id + '/scenarios/browser~csai'
+        url ='https://search-api-mlbtv.mlb.com/svc/search/v2/graphql/persisted/query/core/Airings?variables=%7B%22contentId%22%3A%22' + content_id + '%22%7D'
+
+        headers = {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer ' + auth,
+            'X-BAMSDK-Version': '3.0',
+            'X-BAMSDK-Platform': 'windows',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36'
+        }
+
+        r = requests.get(url, headers=headers, cookies=self.util.load_cookies(), verify=self.verify)
+        if r.status_code != 200:
+            dialog = xbmcgui.Dialog()
+            title = "Error Occured"
+            msg = ""
+            for item in r.json()['errors']:
+                msg += item['code'] + '\n'
+            dialog.notification(title, msg, self.icon, 5000, False)
+            sys.exit()
+
+        return r.json()['data']['Airings'][0]['playbackUrls'][0]['href']
+
+    def get_stream(self, content_id):
+        auth = self.access_token()
+        #url = 'https://edge.svcs.mlb.com/media/' + media_id + '/scenarios/browser~csai'
+        #url = 'https://playback.svcs.mlb.com/events/ed5cc8a5-6fe5-4d36-b479-5097d77abdb6/media/' + media_id + '/scenarios/browser~csai'
+        url = self.get_playback_url(content_id)
+        url = url.replace('{scenario}','browser~csai')
+
         headers = {
             'Accept': 'application/vnd.media-service+json; version=2',
             'Authorization': auth,
@@ -191,11 +220,16 @@ class Account:
             msg = ""
             for item in r.json()['errors']:
                 msg += item['code'] + '\n'
-            dialog.notification(title, msg, ICON, 5000, False)
+            dialog.notification(title, msg, self.icon, 5000, False)
             sys.exit()
 
-        stream_url = r.json()['stream']['complete']
-        stream_url = self.get_stream_quality(stream_url)
+        if 'slide' in r.json()['stream']:
+            stream_url = r.json()['stream']['slide']
+        else:
+            stream_url = r.json()['stream']['complete']
+
+        if QUALITY == 'Always Ask':
+            stream_url = self.get_stream_quality(stream_url)
         headers = '|User-Agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36'
         headers += '&Authorization=' + auth
         headers += '&Cookie='
@@ -206,30 +240,6 @@ class Account:
         return stream_url, headers
 
     def get_stream_quality(self, stream_url):
-        """
-        #EXTM3U
-        #EXT-X-INDEPENDENT-SEGMENTS
-        #EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",LANGUAGE="en",NAME="English",AUTOSELECT=YES,DEFAULT=YES
-        #EXT-X-MEDIA:TYPE=CLOSED-CAPTIONS,GROUP-ID="cc",LANGUAGE="en",NAME="English",INSTREAM-ID="CC1"
-        #EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",NAME="Natural Sound",LANGUAGE="zxx",AUTOSELECT=NO,URI="ballpark_48K/48_complete.m3u8"
-        #EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",NAME="English Radio",LANGUAGE="en",AUTOSELECT=NO,URI="eng_48K/48_complete.m3u8"
-        #EXT-X-STREAM-INF:BANDWIDTH=2120000,RESOLUTION=896x504,FRAME-RATE=29.97,CODECS="mp4a.40.2,avc1.4d001f",CLOSED-CAPTIONS="cc",AUDIO="aac"
-        1800K/1800_complete.m3u8
-        #EXT-X-STREAM-INF:BANDWIDTH=620000,RESOLUTION=400x224,FRAME-RATE=29.97,CODECS="mp4a.40.2,avc1.4d001f",CLOSED-CAPTIONS="cc",AUDIO="aac"
-        514K/514_complete.m3u8
-        #EXT-X-STREAM-INF:BANDWIDTH=960000,RESOLUTION=512x288,FRAME-RATE=29.97,CODECS="mp4a.40.2,avc1.4d001f",CLOSED-CAPTIONS="cc",AUDIO="aac"
-        800K/800_complete.m3u8
-        #EXT-X-STREAM-INF:BANDWIDTH=1400000,RESOLUTION=640x360,FRAME-RATE=29.97,CODECS="mp4a.40.2,avc1.4d001f",CLOSED-CAPTIONS="cc",AUDIO="aac"
-        1200K/1200_complete.m3u8
-        #EXT-X-STREAM-INF:BANDWIDTH=2950000,RESOLUTION=960x540,FRAME-RATE=29.97,CODECS="mp4a.40.2,avc1.4d001f",CLOSED-CAPTIONS="cc",AUDIO="aac"
-        2500K/2500_complete.m3u8
-        #EXT-X-STREAM-INF:BANDWIDTH=4160000,RESOLUTION=1280x720,FRAME-RATE=29.97,CODECS="mp4a.40.2,avc1.640028",CLOSED-CAPTIONS="cc",AUDIO="aac"
-        3500K/3500_complete.m3u8
-        #EXT-X-STREAM-INF:BANDWIDTH=6600000,RESOLUTION=1280x720,FRAME-RATE=59.94,CODECS="mp4a.40.2,avc1.640028",CLOSED-CAPTIONS="cc",AUDIO="aac"
-        5600K/5600_complete.m3u8
-        #EXT-X-I-FRAME-STREAM-INF:BANDWIDTH=62000,RESOLUTION=400x224,CODECS="avc1.4d001f,mp4a.40.2",URI="514K/514_complete_iframe.m3u8"
-        #EXT-X-I-FRAME-STREAM-INF:BANDWIDTH=295000,RESOLUTION=960x540,CODECS="avc1.4d001f,mp4a.40.2",URI="2500K/2500_complete_iframe.m3u8"
-        """
         stream_title = []
         stream_urls = []
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36'}
@@ -237,33 +247,27 @@ class Account:
         r = requests.get(stream_url, headers=headers, verify=False)
         master = r.text
 
-        xbmc.log(stream_url)
-        xbmc.log(master)
-
         line = re.compile("(.+?)\n").findall(master)
 
         for temp_url in line:
-            if '.m3u8' in temp_url:
-                temp_url = temp_url
+            if '#EXT' not in temp_url:
                 match = re.search(r'(\d.+?)K', temp_url, re.IGNORECASE)
-                if match:
-                    bandwidth = match.group()
-                    if 0 < len(bandwidth) < 6:
-                        bandwidth = bandwidth.replace('K', ' kbps')
-                        stream_title.append(bandwidth)
-                        stream_urls.append(temp_url)
+                bandwidth = match.group()
+                if 0 < len(bandwidth) < 6:
+                    bandwidth = bandwidth.replace('K', ' kbps')
+                    stream_title.append(bandwidth)
+                    stream_urls.append(temp_url)
 
         stream_title.sort(key=self.util.natural_sort_key, reverse=True)
+        stream_urls.sort(key=self.util.natural_sort_key, reverse=True)
         dialog = xbmcgui.Dialog()
-        ret = dialog.select('Choose Stream Quality', stream_urls)
+        ret = dialog.select('Choose Stream Quality', stream_title)
         if ret >= 0:
-            #bandwidth = self.util.find(stream_title[ret], '', ' kbps')
             if 'http' not in stream_urls[ret]:
-                #https://hlslive-aksc-ewr1.media.mlb.com/ls01/mlb/2018/04/02/Home_VIDEO_eng_Chicago_Cubs_Cincinnati_R_20180402_1522691569600/master_wired60_complete.m3u8
-                #https://hlslive-aksc-ewr1.media.mlb.com/ls01/mlb/2018/04/02/Home_VIDEO_eng_Chicago_Cubs_Cincinnati_R_20180402_1522691569600/2500K/2500_complete.m3u8|
-                #https://hlslive-l3c-ewr1.media.mlb.com/ls01/mlb/2018/04/02/Away_VIDEO_eng_Chicago_Cubs_Cincinnati_R_20180402_1522691569609/5600K/5600_complete.m3u8
                 stream_url = stream_url.replace(stream_url.rsplit('/', 1)[-1], stream_urls[ret])
             else:
                 stream_url = stream_urls[ret]
+        else:
+            sys.exit()
 
         return stream_url

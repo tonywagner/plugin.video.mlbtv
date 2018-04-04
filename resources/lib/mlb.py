@@ -193,9 +193,10 @@ def stream_select(game_pk):
     json_source = r.json()
 
     stream_title = ['Highlights']
-    media_id = []
+    #media_id = []
     free_game = []
     media_state = []
+    content_id = []
     playback_scenario = []
     epg = json_source['media']['epg'][0]['items']
     for item in epg:
@@ -205,8 +206,8 @@ def stream_select(game_pk):
             title = title.replace('_', ' ')
             stream_title.append(title + " (" + item['callLetters'].encode('utf-8') + ")")
             media_state.append(item['mediaState'])
-            media_id.append(item['mediaId'])
-            # content_id.append(item['guid'])
+            #media_id.append(item['mediaId'])
+            content_id.append(item['contentId'])
             # playback_scenario.append(str(item['playback_scenario']))
 
     # All past games should have highlights
@@ -224,7 +225,7 @@ def stream_select(game_pk):
     n = dialog.select('Choose Stream', stream_title)
     if n > -1 and stream_title[n] != 'Highlights':
         account = Account()
-        stream_url, headers = account.get_stream(media_id[n-1])
+        stream_url, headers = account.get_stream(content_id[n-1])
 
     if '.m3u8' in stream_url:
         play_stream(stream_url, headers)

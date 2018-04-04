@@ -379,7 +379,7 @@ def getFavTeamColor():
     
     fav_team_color = team_colors[FAV_TEAM]
     
-    return  fav_team_color
+    return fav_team_color
 
 
 def getFavTeamId():
