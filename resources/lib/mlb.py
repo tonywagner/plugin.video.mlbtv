@@ -193,32 +193,23 @@ def stream_select(game_pk):
     json_source = r.json()
 
     stream_title = ['Highlights']
-    #media_id = []
-    free_game = []
     media_state = []
     content_id = []
-    playback_scenario = []
     epg = json_source['media']['epg'][0]['items']
     for item in epg:
         xbmc.log(str(item))
         if item['mediaState'] != 'MEDIA_OFF':
-            if IN_MARKET == 'Hide':
-                if item['mediaFeedType'] != 'IN_MARKET_HOME' and item['mediaFeedType'] != 'IN_MARKET_AWAY':
-                    title = str(item['mediaFeedType']).title()
-                    title = title.replace('_', ' ')
-                    stream_title.append(title + " (" + item['callLetters'].encode('utf-8') + ")")
-                    media_state.append(item['mediaState'])
-                    #media_id.append(item['mediaId'])
-                    content_id.append(item['contentId'])
-                    # playback_scenario.append(str(item['playback_scenario']))
-            else:
+            if IN_MARKET != 'Hide' or (item['mediaFeedType'] != 'IN_MARKET_HOME' and item['mediaFeedType'] != 'IN_MARKET_AWAY'):
                 title = str(item['mediaFeedType']).title()
                 title = title.replace('_', ' ')
                 stream_title.append(title + " (" + item['callLetters'].encode('utf-8') + ")")
-                media_state.append(item['mediaState'])
-                #media_id.append(item['mediaId'])
-                content_id.append(item['contentId'])
-                # playback_scenario.append(str(item['playback_scenario']))
+                if item['mediaFeedType'] == 'HOME':
+                    media_state.insert(1, item['mediaState'])
+                    content_id.insert(1, item['contentId'])
+                else:
+                    media_state.append(item['mediaState'])
+                    content_id.append(item['contentId'])
+
 
 
     # All past games should have highlights
@@ -247,6 +238,7 @@ def stream_select(game_pk):
     else:
         xbmcplugin.setResolvedUrl(addon_handle, False, xbmcgui.ListItem())
         xbmc.executebuiltin('Dialog.Close(all,true)')
+        sys.exit()
 
 
 def highlight_select_stream(json_source):
