@@ -1,5 +1,5 @@
 from resources.lib.globals import *
-from account import Account
+from .account import Account
 
 
 def categories():
