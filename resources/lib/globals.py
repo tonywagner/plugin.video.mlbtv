@@ -92,7 +92,7 @@ UA_ANDROID = 'okhttp/3.9.0'
 #Playlists
 RECAP_PLAYLIST = xbmc.PlayList(0)
 EXTENDED_PLAYLIST = xbmc.PlayList(1)
-VERIFY = True
+VERIFY = False
 
 
 def find(source,start_str,end_str):    
