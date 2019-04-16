@@ -29,14 +29,14 @@ class Account:
         # Check if username and password are provided
         if self.username == '':
             dialog = xbmcgui.Dialog()
-            username = dialog.input('Please enter your username', type=xbmcgui.INPUT_ALPHANUM)
-            self.addon.setSetting(id='username', value=username)
+            self.username = dialog.input('Please enter your username', type=xbmcgui.INPUT_ALPHANUM)
+            self.addon.setSetting(id='username', value=self.username)
 
         if self.password == '':
             dialog = xbmcgui.Dialog()
-            password = dialog.input('Please enter your password', type=xbmcgui.INPUT_ALPHANUM,
+            self.password = dialog.input('Please enter your password', type=xbmcgui.INPUT_ALPHANUM,
                                     option=xbmcgui.ALPHANUM_HIDE_INPUT)
-            self.addon.setSetting(id='password', value=password)
+            self.addon.setSetting(id='password', value=self.password)
 
         if self.username == '' or self.password == '':
             sys.exit()
