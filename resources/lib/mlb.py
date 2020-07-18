@@ -44,8 +44,11 @@ def todays_games(game_day):
     RECAP_PLAYLIST.clear()
     EXTENDED_PLAYLIST.clear()
 
-    for game in json_source['dates'][0]['games']:
-        create_game_listitem(game, game_day)
+    try:
+        for game in json_source['dates'][0]['games']:
+            create_game_listitem(game, game_day)
+    except:
+        pass
 
     next_day = display_day + timedelta(days=1)
     addDir('[B]Next Day >>[/B]', 101, NEXT_ICON, FANART, next_day.strftime("%Y-%m-%d"))
