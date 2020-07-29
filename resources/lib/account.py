@@ -3,7 +3,10 @@ from utils import Util
 from resources.lib.globals import *
 import xbmc, xbmcaddon, xbmcgui
 import time, uuid
-import urllib.parse
+try:
+    from urllib import quote  # Python 2.X
+except ImportError:
+    from urllib.parse import quote  # Python 3+
 
 class Account:
     addon = xbmcaddon.Addon()
@@ -11,7 +14,7 @@ class Account:
     password = ''
     session_key = ''
     icon = os.path.join(addon.getAddonInfo('path'), 'icon.png')
-    verify = True
+    verify = False
 
     def __init__(self):
         self.username = self.addon.getSetting('username')
@@ -42,21 +45,30 @@ class Account:
         if self.username == '' or self.password == '':
             sys.exit()
         else:
-
-            headers = {'User-Agent': 'okhttp/3.12.1',
+            url = 'https://ids.mlb.com/oauth2/aus1m088yK07noBfh356/v1/token'
+            headers = {'User-Agent': UA_ANDROID,
                        'Content-Type': 'application/x-www-form-urlencoded'
                        }
-
-            url = 'https://ids.mlb.com/oauth2/aus1m088yK07noBfh356/v1/token'
             payload = ('grant_type=password&username=%s&password=%s&scope=openid offline_access'
-                       '&client_id=0oa3e1nutA1HLzAKG356') % (urllib.parse.quote(self.username), 
-                                                             urllib.parse.quote(self.password))
+                       '&client_id=0oa3e1nutA1HLzAKG356') % (quote(self.username),
+                                                             quote(self.password))
 
             r = requests.post(url, headers=headers, data=payload, verify=self.verify)
-            login_token = r.json()['access_token']
+            if r.ok:
+                login_token = r.json()['access_token']
+                self.addon.setSetting('login_token', login_token)
+                self.addon.setSetting('last_login', str(time.time()))
+            else:
+                dialog = xbmcgui.Dialog()
+                title = "Login Failed"
+                msg = "Please check your credentials and try again"
+                if 'error_description' in r.json():
+                    msg = r.json()['error_description']
+                dialog.notification(title, msg, ICON, 5000, False)
+                self.addon.setSetting('login_token', '')
+                self.addon.setSetting('last_login', '')
+                sys.exit()
 
-            self.addon.setSetting('login_token', login_token)
-            self.addon.setSetting('last_login', str(time.time()))
 
     def logout(self):
         self.util.delete_cookies()
@@ -71,7 +83,7 @@ class Account:
             self.login()
 
         url = 'https://media-entitlement.mlb.com/api/v3/jwt?os=Android&appname=AtBat&did=' + self.device_id()
-        headers = {'User-Agent': 'okhttp/3.12.1',
+        headers = {'User-Agent': UA_ANDROID,
                    'Authorization': 'Bearer ' + self.addon.getSetting('login_token')
                    }
 
@@ -109,7 +121,7 @@ class Account:
         }
 
         r = requests.get(url, headers=headers, cookies=self.util.load_cookies(), verify=self.verify)
-        if r.status_code != 200:
+        if not r.ok:
             dialog = xbmcgui.Dialog()
             title = "Error Occured"
             msg = ""
@@ -122,18 +134,18 @@ class Account:
 
     def get_stream(self, content_id):
         auth, url = self.get_playback_url(content_id)
-        url = url.replace('{scenario}','browser~csai')
 
+        url = url.replace('{scenario}','browser~csai')
         headers = {
             'Accept': 'application/vnd.media-service+json; version=2',
             'Authorization': auth,
             'X-BAMSDK-Version': '3.0',
             'X-BAMSDK-Platform': 'windows',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36'
+            'User-Agent': UA_PC
         }
 
         r = requests.get(url, headers=headers, cookies=self.util.load_cookies(), verify=self.verify)
-        if r.status_code != 200:
+        if not r.ok:
             dialog = xbmcgui.Dialog()
             title = "Error Occured"
             msg = ""
@@ -149,7 +161,7 @@ class Account:
 
         if QUALITY == 'Always Ask':
             stream_url = self.get_stream_quality(stream_url)
-        headers = 'User-Agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36'
+        headers = 'User-Agent=' + UA_PC
         headers += '&Authorization=' + auth
         headers += '&Cookie='
         cookies = requests.utils.dict_from_cookiejar(self.util.load_cookies())
@@ -177,7 +189,7 @@ class Account:
 
         stream_title = []
         stream_urls = []
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36'}
+        headers = {'User-Agent': UA_PC}
 
         r = requests.get(stream_url, headers=headers, verify=False)
         master = r.text

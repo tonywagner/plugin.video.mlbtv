@@ -317,15 +317,17 @@ def getGamesForDate(stream_date):
     day = stream_date_new.strftime("%d")
 
     url = 'http://gdx.mlb.com/components/game/mlb/year_' + year + '/month_' + month + '/day_' + day + '/'
-    req = urllib2.Request(url)
-    req.add_header('Connection', 'close')
-    req.add_header('User-Agent', UA_IPAD)
+    #req = urllib2.Request(url)
+    #req.add_header('Connection', 'close')
+    #req.add_header('User-Agent', UA_IPAD)
 
     try:
-        response = urllib2.urlopen(req)
-        html_data = response.read()
-        response.close()
-    except HTTPError as e:
+        r = requests.get(url, headers={'User-Agent': UA_IPAD})
+        # response = urllib2.urlopen(req)
+        html_data = r.text()
+        # response.close()
+    #except HTTPError as e:
+    except requests.exceptions.RequestException as e:
         xbmc.log('The server couldn\'t fulfill the request.')
         xbmc.log('Error code: ', e.code)
         sys.exit()

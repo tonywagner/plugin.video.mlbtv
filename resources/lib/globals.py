@@ -1,19 +1,16 @@
 # coding=utf-8
-import sys
-import re, os, time
-import calendar
-import pytz
+import sys, re, os, time
+import calendar, pytz
 import urllib, urllib2, requests
-import json
+#import json
 import cookielib
-import time
 import math
-from bs4 import BeautifulSoup 
 from datetime import date, datetime, timedelta
-from urllib2 import URLError, HTTPError
+#from urllib2 import URLError, HTTPError
 #from PIL import Image
-from cStringIO import StringIO
+#from cStringIO import StringIO
 import xbmc, xbmcplugin, xbmcgui, xbmcaddon
+
 
 addon_handle = int(sys.argv[1])
 
@@ -34,7 +31,6 @@ USERNAME = str(settings.getSetting(id="username"))
 PASSWORD = str(settings.getSetting(id="password"))
 OLD_USERNAME = str(settings.getSetting(id="old_username"))
 OLD_PASSWORD = str(settings.getSetting(id="old_password"))
-ROGERS_SUBSCRIBER = str(settings.getSetting(id="rogers"))
 QUALITY = str(settings.getSetting(id="quality"))
 CDN = str(settings.getSetting(id="cdn"))
 IN_MARKET = str(settings.getSetting(id="in_market"))
@@ -84,15 +80,15 @@ else:
 #User Agents
 UA_IPHONE = 'AppleCoreMedia/1.0.0.13D15 (iPhone; U; CPU OS 9_2_1 like Mac OS X; en_us)'
 UA_IPAD = 'AppleCoreMedia/1.0 ( iPad; compatible; 3ivx HLS Engine/2.0.0.382; Win8; x64; 264P AACP AC3P AESD CLCP HTPC HTPI HTSI MP3P MTKA)'
-UA_PC = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.97 Safari/537.36'         
+UA_PC = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36'
 UA_PS4 = 'PS4Application libhttp/1.000 (PS4) libhttp/3.15 (PlayStation 4)'
 UA_ATBAT = 'At Bat/13268 CFNetwork/758.2.8 Darwin/15.0.0'
-UA_ANDROID = 'okhttp/3.9.0'
+UA_ANDROID = 'okhttp/3.12.1'
 
 #Playlists
 RECAP_PLAYLIST = xbmc.PlayList(0)
 EXTENDED_PLAYLIST = xbmc.PlayList(1)
-VERIFY = True
+VERIFY = False
 
 
 def find(source,start_str,end_str):    
@@ -436,23 +432,6 @@ def getAudioVideoInfo():
     return audio_info, video_info
 
 
-def getConfigFile():
-    '''
-    GET http://lwsa.mlb.com/partner-config/config?company=sony-tri&type=nhl&productYear=2015&model=PS4&firmware=default&app_version=1_0 HTTP/1.0
-    Host: lwsa.mlb.com
-    User-Agent: PS4Application libhttp/1.000 (PS4) libhttp/3.15 (PlayStation 4)
-    Connection: close
-    '''
-    url = 'http://lwsa.mlb.com/partner-config/config?company=sony-tri&type=nhl&productYear=2015&model=PS4&firmware=default&app_version=1_0'
-    req = urllib2.Request(url)       
-    req.add_header("Connection", "close")
-    req.add_header("User-Agent", UA_PS4)
-
-    response = urllib2.urlopen(req, '')
-    json_source = json.load(response)   
-    response.close()
-    
-
 def convertSubtitles(suburl):
     #suburl = subtitles url
     #xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, xbmcgui.ListItem(path = url))
@@ -518,47 +497,6 @@ def natural_sort_key(s):
     _nsre = re.compile('([0-9]+)')
     return [int(text) if text.isdigit() else text.lower()
             for text in re.split(_nsre, s)] 
-
-def getBlackoutLiftTime(url):
-    #"http://mediadownloads.mlb.com/ttml/2016/04/14/584182283.ttml"
-    #url = 'http://mediadownloads.mlb.com/ttml/2016/04/14/584182283.ttml'    
-    req = urllib2.Request(url)    
-    req.add_header('Connection', 'close')
-    req.add_header('User-Agent', UA_IPAD)
-    try:    
-        response = urllib2.urlopen(req)            
-        xml_data = response.read()                                 
-        response.close()                
-    except HTTPError as e:
-        xbmc.log('The server couldn\'t fulfill the request.')
-        xbmc.log('Error code: ', e.code)
-        sys.exit()
-    
-    
-    #<p begin="19:59:16;28" end="19:59:20;06">PRESENTED BY THE ALLEGHENY HEALTH NETWORK.</p>
-    #match = re.compile("<p begin='(.+?)' end='(.+?)'>",re.DOTALL).findall(xml_data)       
-    match = re.compile('<inningTime type="SCAST" start="(.+?)" end="(.+?)"/>',re.DOTALL).findall(xml_data) 
-    
-    last_end_time = ''
-    for begin_time, end_time in match:        
-        last_end_time = end_time
-
-
-    #ex 19:59:20;06
-    game_end_time = datetime.strptime(last_end_time,'%H:%M:%S')
-    blackout_lift_time = game_end_time + timedelta(minutes = 90)
-    now = datetime.strptime(datetime.utcnow().strftime('%H:%M:%S'),'%H:%M:%S')
-    
-    minutes_until_lift = int(math.ceil((blackout_lift_time - now).total_seconds() / 60))
-    lift_time = datetime.utcnow() + timedelta(minutes = minutes_until_lift)
-    local_lift_time = UTCToLocal(lift_time)
-
-    if TIME_FORMAT == '0':
-         local_lift_time = local_lift_time.strftime('%I:%M %p').lstrip('0')
-    else:
-         local_lift_time = local_lift_time.strftime('%H:%M')
-    
-    return minutes_until_lift, local_lift_time
 
 
 def save_cookies(cookiejar):
