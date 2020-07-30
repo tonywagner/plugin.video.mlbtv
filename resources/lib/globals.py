@@ -1,15 +1,11 @@
 # coding=utf-8
 import sys, re, os, time
 import calendar, pytz
-import urllib, urllib2, requests
-#import json
+import urllib, requests
 import cookielib
-#import math
 from datetime import date, datetime, timedelta
-#from urllib2 import URLError, HTTPError
-#from PIL import Image
-#from cStringIO import StringIO
 import xbmc, xbmcplugin, xbmcgui, xbmcaddon
+
 addon_handle = int(sys.argv[1])
 
 
@@ -214,7 +210,7 @@ def add_stream(name, title, game_pk, icon=None, fanart=None, info=None, video_in
     u=sys.argv[0]+"?mode="+str(104)+"&name="+urllib.quote_plus(name)+"&game_pk="+urllib.quote_plus(str(game_pk))+"&stream_date="+urllib.quote_plus(str(stream_date))
 
     #if icon != None:
-    liz=xbmcgui.ListItem(name, iconImage=ICON, thumbnailImage=icon) 
+    liz=xbmcgui.ListItem(name, iconImage=ICON, thumbnailImage=icon)
     #else:
     #liz=xbmcgui.ListItem(name, iconImage="DefaultVideo.png", thumbnailImage=ICON) 
     

@@ -74,8 +74,10 @@ def create_game_listitem(game, game_day):
         away_team = game['teams']['away']['team']['abbreviation']
         home_team = game['teams']['home']['team']['abbreviation']
 
-    fav_game = False
+    title = away_team + ' at ' + home_team
+    title = title.encode('utf-8')
 
+    fav_game = False
     if game['teams']['away']['team']['name'].encode('utf-8') in FAV_TEAM:
         fav_game = True
         away_team = colorString(away_team, getFavTeamColor())
@@ -145,13 +147,14 @@ def create_game_listitem(game, game_day):
         if 'linescore' in game: name += ' ' + colorString(str(game['linescore']['teams']['away']['runs']), SCORE_COLOR)
         name += ' at ' + home_team
         if 'linescore' in game: name += ' ' + colorString(str(game['linescore']['teams']['home']['runs']), SCORE_COLOR)
+        try:
+            desc = game['content']['editorial']['recap']['mlb']['headline'].encode('utf-8')
+        except:
+            pass
 
     name = name.encode('utf-8')
     if fav_game:
         name = '[B]' + name + '[/B]'
-
-    title = away_team + ' at ' + home_team
-    title = title.encode('utf-8')
 
     # Label free game of the day if applicable
     try:
@@ -184,7 +187,6 @@ def create_game_listitem(game, game_day):
     except:
         pass
     """
-
     add_stream(name, title, game_pk, icon, fanart, info, video_info, audio_info, stream_date)
 
 
@@ -452,15 +454,11 @@ def my_teams_games():
         end_date = end_date.strftime("%Y%m%d")
         season = start_date.strftime("%Y")
 
-        url = 'http://mlb.mlb.com/lookup/named.schedule_vw.bam?end_date=' + end_date + '&season=' + season + '&team_id=' + fav_team_id + '&start_date=' + start_date
-        req = urllib2.Request(url)
-        req.add_header('User-Agent', UA_IPAD)
-        response = urllib2.urlopen(req)
-        json_source = json.load(response)
-        response.close()
+        url = 'http://mlb.mlb.com/lookup/named.schedule_vw.bam?end_date=%s&season=%s&team_id=%s&start_date=%s' % \
+              (end_date, season, fav_team_id, start_date)
+        r = requests.get(url, headers={'User-Agent': UA_PC})
 
         for game_row in match:
-
             for game in date['games']:
                 create_game_listitem(game, date['date'])
     else:
