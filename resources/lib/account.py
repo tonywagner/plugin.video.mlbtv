@@ -14,7 +14,7 @@ class Account:
     password = ''
     session_key = ''
     icon = os.path.join(addon.getAddonInfo('path'), 'icon.png')
-    verify = False
+    verify = True
 
     def __init__(self):
         self.username = self.addon.getSetting('username')
