@@ -4,14 +4,12 @@ import calendar, pytz
 import urllib, urllib2, requests
 #import json
 import cookielib
-import math
+#import math
 from datetime import date, datetime, timedelta
 #from urllib2 import URLError, HTTPError
 #from PIL import Image
 #from cStringIO import StringIO
 import xbmc, xbmcplugin, xbmcgui, xbmcaddon
-
-
 addon_handle = int(sys.argv[1])
 
 
@@ -192,7 +190,6 @@ def easternToUTC(eastern_time):
     return utc_time
 
 
-
 def get_params():
     param=[]
     paramstring=sys.argv[2]
@@ -269,8 +266,6 @@ def addLink(name,url,title,iconimage,info=None,video_info=None,audio_info=None,f
     return ok
 
 
-
-
 def addDir(name,mode,iconimage,fanart=None,game_day=None):       
     ok=True    
     
@@ -340,6 +335,7 @@ def scoreUpdates():
     #s = ScoreThread()
     t = threading.Thread(target = scoringUpdates)
     t.start() 
+
 
 def getFavTeamColor():
     #Hex code taken from http://jim-nielsen.com/teamcolors/    
@@ -418,6 +414,7 @@ def getFavTeamId():
 
     return  fav_team_id
 
+
 def getAudioVideoInfo():
     #SD (800 kbps)|SD (1600 kbps)|HD (3000 kbps)|HD (5000 kbps)
     if QUALITY == 'SD (800 kbps)':        
@@ -464,11 +461,9 @@ def convertSubtitles(suburl):
 
 
 def getStreamQuality(stream_url):    
-    stream_title = []         
-    req = urllib2.Request(stream_url)
-    response = urllib2.urlopen(req)                    
-    master = response.read()
-    response.close()
+    stream_title = []
+    r = reguests.get(stream_url, headers={'User-Agent': UA_PC})
+    master = r.text()
             
     line = re.compile("(.+?)\n").findall(master)  
 
