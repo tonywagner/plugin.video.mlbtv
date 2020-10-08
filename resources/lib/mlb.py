@@ -3,10 +3,9 @@ from .account import Account
 
 
 def categories():
-    addDir('Today\'s Games', 100, ICON, FANART)
-    addDir('Yesterday\'s Games', 105, ICON, FANART)
-    # addDir('Favorite Team Recent Games','favteam',500,ICON,FANART)
-    addDir('Goto Date', 200, ICON, FANART)
+    addDir(LOCAL_STRING(30360), 100, ICON, FANART)
+    addDir(LOCAL_STRING(30361), 105, ICON, FANART)
+    addDir(LOCAL_STRING(30362), 200, ICON, FANART)
 
 
 def todays_games(game_day):
@@ -19,7 +18,7 @@ def todays_games(game_day):
     #url_game_day = display_day.strftime('year_%Y/month_%m/day_%d')
     prev_day = display_day - timedelta(days=1)
 
-    addDir('[B]<< Previous Day[/B]', 101, PREV_ICON, FANART, prev_day.strftime("%Y-%m-%d"))
+    addDir('[B]<< %s[/B]' % LOCAL_STRING(30010), 101, PREV_ICON, FANART, prev_day.strftime("%Y-%m-%d"))
 
     date_display = '[B][I]' + colorString(display_day.strftime("%A, %m/%d/%Y"), GAMETIME_COLOR) + '[/I][/B]'
 
@@ -36,6 +35,7 @@ def todays_games(game_day):
     headers = {
         'User-Agent': UA_ANDROID
     }
+    xbmc.log(url)
     r = requests.get(url,headers=headers, verify=VERIFY)
     json_source = r.json()
 
@@ -51,7 +51,7 @@ def todays_games(game_day):
         pass
 
     next_day = display_day + timedelta(days=1)
-    addDir('[B]Next Day >>[/B]', 101, NEXT_ICON, FANART, next_day.strftime("%Y-%m-%d"))
+    addDir('[B]%s >>[/B]' % LOCAL_STRING(30011), 101, NEXT_ICON, FANART, next_day.strftime("%Y-%m-%d"))
 
 
 def create_game_listitem(game, game_day):
@@ -75,14 +75,14 @@ def create_game_listitem(game, game_day):
         home_team = game['teams']['home']['team']['abbreviation']
 
     title = away_team + ' at ' + home_team
-    title = title.encode('utf-8')
+    title = title
 
     fav_game = False
-    if game['teams']['away']['team']['name'].encode('utf-8') in FAV_TEAM:
+    if game['teams']['away']['team']['name'] in FAV_TEAM:
         fav_game = True
         away_team = colorString(away_team, getFavTeamColor())
 
-    if game['teams']['home']['team']['name'].encode('utf-8') in FAV_TEAM:
+    if game['teams']['home']['team']['name'] in FAV_TEAM:
         fav_game = True
         home_team = colorString(home_team, getFavTeamColor())
 
@@ -148,11 +148,11 @@ def create_game_listitem(game, game_day):
         name += ' at ' + home_team
         if 'linescore' in game: name += ' ' + colorString(str(game['linescore']['teams']['home']['runs']), SCORE_COLOR)
         try:
-            desc = game['content']['editorial']['recap']['mlb']['headline'].encode('utf-8')
+            desc = game['content']['editorial']['recap']['mlb']['headline']
         except:
             pass
 
-    name = name.encode('utf-8')
+    name = name
     if fav_game:
         name = '[B]' + name + '[/B]'
 
@@ -211,11 +211,11 @@ def stream_select(game_pk):
                 if 'HOME' in title.upper():
                     media_state.insert(0, item['mediaState'])
                     content_id.insert(0, item['contentId'])
-                    stream_title.insert(1, title + " (" + item['callLetters'].encode('utf-8') + ")")
+                    stream_title.insert(1, title + " (" + item['callLetters'] + ")")
                 else:
                     media_state.append(item['mediaState'])
                     content_id.append(item['contentId'])
-                    stream_title.append(title + " (" + item['callLetters'].encode('utf-8') + ")")
+                    stream_title.append(title + " (" + item['callLetters'] + ")")
 
     # All past games should have highlights
     if len(stream_title) == 0:
@@ -342,7 +342,7 @@ def getGamesForDate(stream_date):
     EXTENDED_PLAYLIST.clear()
 
     pDialog = xbmcgui.DialogProgressBG()
-    pDialog.create('MLB Highlights', 'Retrieving Streams ...')
+    pDialog.create(LOCAL_STRING(30380), LOCAL_STRING(30381))
     match_count = len(match)
     if match_count == 0:
         match_count = 1  # prevent division by zero when no games
@@ -351,7 +351,7 @@ def getGamesForDate(stream_date):
     bandwidth = find(QUALITY, '(', ' kbps)')
 
     for gid, junk in match:
-        pDialog.update(perc_increments, message='Downloading ' + gid)
+        pDialog.update(perc_increments, message=LOCAL_STRING(30382) + gid)
         try:
             recap, condensed, highlights = get_highlight_links(None, stream_date, gid)
 
@@ -388,27 +388,14 @@ def get_highlight_links(teams_stream, stream_date):
     year = stream_date.strftime("%Y")
     month = stream_date.strftime("%m")
     day = stream_date.strftime("%d")
-    """
-    GET https://content.mlb.com/app/mlb/mobile/components/game/mlb/year_2018/month_03/day_02/gid_2018_03_02_miamlb_detmlb_1/media/mobile.xml HTTP/1.1
-    Host: content.mlb.com
-    Accept: */*
-    Cookie: fprt= ipid=
-    User-Agent: At%20Bat/26884 CFNetwork/894 Darwin/17.4.0
-    Accept-Language: en-us
-    Accept-Encoding: br, gzip, deflate
-    Connection: keep-alive
-
-    """
 
     #if gid is None:
     away = teams_stream[:3].lower()
     home = teams_stream[3:].lower()
-    #url = 'http://gdx.mlb.com/components/game/mlb/year_' + year + '/month_' + month + '/day_' + day + '/gid_' + year + '_' + month + '_' + day + '_' + away + 'mlb_' + home + 'mlb_1/media/mobile.xml'
-    url = 'https://content.mlb.com/app/mlb/mobile/components/game/mlb/year_' + year + '/month_' + month + '/day_' + day + '/gid_' + year + '_' + month + '_' + day + '_' + away + 'mlb_' + home + 'mlb_1/media/mobile.xml'
-          #http://gdx.mlb.com/components/game/mlb/year_2018/month_03/day_02/gid_2018_03_02_atlmlb_nyamlb_1/media/mobile.xml
-    #'https://content.mlb.com/app/mlb/mobile/components/game/mlb/year_2018/month_03/day_02/gid_2018_03_02_miamlb_detmlb_1/media/mobile.xml'
-    #else:
-    #url = 'http://gdx.mlb.com/components/game/mlb/year_' + year + '/month_' + month + '/day_' + day + '/gid_' + gid + '/media/mobile.xml'
+    #url = 'https://content.mlb.com/app/mlb/mobile/components/game/mlb/year_' + year + '/month_' + month + '/day_' + day + '/gid_' + year + '_' + month + '_' + day + '_' + away + 'mlb_' + home + 'mlb_1/media/mobile.xml'
+    url = 'https://content.mlb.com/app/mlb/mobile/components/game/mlb/year_%s/month_%s/day_%s/gid_%s_%s_%s_%smlb_%smlb_1/media/mobile.xml' % (
+    year, month, day, year, month, day, away, home)
+
 
     headers = {
         'User-Agent': UA_IPAD
@@ -442,29 +429,6 @@ def get_highlight_links(teams_stream, stream_date):
 
     return recap, condensed, highlights
 
-
-def my_teams_games():
-    if FAV_TEAM != 'None':
-        fav_team_id = getFavTeamId()
-
-        end_date = localToEastern()
-        end_date = stringToDate(end_date, "%Y-%m-%d")
-        start_date = end_date - timedelta(days=30)
-        start_date = start_date.strftime("%Y%m%d")
-        end_date = end_date.strftime("%Y%m%d")
-        season = start_date.strftime("%Y")
-
-        url = 'http://mlb.mlb.com/lookup/named.schedule_vw.bam?end_date=%s&season=%s&team_id=%s&start_date=%s' % \
-              (end_date, season, fav_team_id, start_date)
-        r = requests.get(url, headers={'User-Agent': UA_PC})
-
-        for game_row in match:
-            for game in date['games']:
-                create_game_listitem(game, date['date'])
-    else:
-        msg = "Please select your favorite team from the addon settings"
-        dialog = xbmcgui.Dialog()
-        dialog.ok('Favorite Team Not Set', msg)
 
 
 

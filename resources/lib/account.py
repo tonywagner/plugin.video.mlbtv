@@ -1,12 +1,14 @@
 import requests
-from utils import Util
+from resources.lib.utils import Util
 from resources.lib.globals import *
-import xbmc, xbmcaddon, xbmcgui
+from kodi_six import xbmc, xbmcaddon, xbmcgui
 import time, uuid
-try:
-    from urllib import quote  # Python 2.X
-except ImportError:
-    from urllib.parse import quote  # Python 3+
+
+if sys.version_info[0] > 2:
+    from urllib.parse import quote
+else:
+    from urllib import quote
+
 
 class Account:
     addon = xbmcaddon.Addon()
@@ -165,7 +167,9 @@ class Account:
         headers += '&Authorization=' + auth
         headers += '&Cookie='
         cookies = requests.utils.dict_from_cookiejar(self.util.load_cookies())
-        for key, value in cookies.iteritems():
+        if sys.version_info[0] <= 2:
+            cookies = cookies.iteritems()
+        for key, value in cookies:
             headers += key + '=' + value + '; '
             
         #CDN
@@ -182,9 +186,7 @@ class Account:
         #Check if inputstream adaptive is on, if so warn user and return master m3u8
         if xbmc.getCondVisibility('System.HasAddon(inputstream.adaptive)'):
             dialog = xbmcgui.Dialog()
-            title = 'Playback Conflict'
-            msg = 'Always Ask stream quality will not work when inputstream adaptive is enabled. Either disable inputstream adaptive or switch stream quality to Best Available.'
-            dialog.ok(title, msg)
+            dialog.ok(LOCAL_STRING(30370), LOCAL_STRING(30371))
             return stream_url
 
         stream_title = []
