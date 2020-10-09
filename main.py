@@ -58,9 +58,8 @@ elif mode == 200:
         todays_games(game_day)
     else:
         if game_day != '':
-            msg = "The date entered is not in the format required."
             dialog = xbmcgui.Dialog()
-            dialog.ok('Invalid Date', msg)
+            dialog.ok(LOCAL_STRING(30365),LOCAL_STRING(30366))
 
         sys.exit()
 
@@ -68,8 +67,7 @@ elif mode == 400:
     account = Account()
     account.logout()
     dialog = xbmcgui.Dialog()
-    title = "Logout Successful"
-    dialog.notification(title, 'Logout completed successfully', ICON, 5000, False)
+    dialog.notification(LOCAL_STRING(30260), LOCAL_STRING(30261), ICON, 5000, False)
 
 elif mode == 500:
     myTeamsGames()

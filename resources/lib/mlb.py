@@ -55,14 +55,13 @@ def todays_games(game_day):
 
 
 def create_game_listitem(game, game_day):
-    # icon = getGameIcon(game['home_team_id'],game['away_team_id'])
     icon = ICON
     # http://mlb.mlb.com/mlb/images/devices/ballpark/1920x1080/2681.jpg
     # B&W
     # fanart = 'http://mlb.mlb.com/mlb/images/devices/ballpark/1920x1080/'+game['venue_id']+'.jpg'
     # Color
     # fanart = 'http://www.mlb.com/mlb/images/devices/ballpark/1920x1080/color/' + str(game['venue']['id']) + '.jpg'
-    fanart = 'http://cd-images.mlbstatic.com/stadium-backgrounds/color/light-theme/1920x1080/' + str(game['venue']['id']) + '.png'
+    fanart = 'http://cd-images.mlbstatic.com/stadium-backgrounds/color/light-theme/1920x1080/%s.png' % game['venue']['id']
 
 
     xbmc.log(str(game['gamePk']))
@@ -219,10 +218,8 @@ def stream_select(game_pk):
 
     # All past games should have highlights
     if len(stream_title) == 0:
-        # and stream_date > localToEastern():
-        msg = "No playable streams found."
         dialog = xbmcgui.Dialog()
-        dialog.notification('Streams Not Found', msg, ICON, 5000, False)
+        dialog.notification(LOCAL_STRING(30383), LOCAL_STRING(30384), ICON, 5000, False)
         xbmcplugin.setResolvedUrl(addon_handle, False, xbmcgui.ListItem())
         sys.exit()
 
