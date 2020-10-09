@@ -3,7 +3,7 @@ import sys, re, os, time
 import calendar, pytz
 import urllib, requests
 from datetime import date, datetime, timedelta
-from kodi_six import xbmc, xbmcplugin, xbmcgui, xbmcaddon
+from kodi_six import xbmc, xbmcvfs, xbmcplugin, xbmcgui, xbmcaddon
 
 if sys.version_info[0] > 2:
     import http
@@ -11,6 +11,11 @@ if sys.version_info[0] > 2:
     urllib = urllib.parse
 else:
     import cookielib
+
+try:
+    xbmc.translatePath = xbmcvfs.translatePath
+except AttributeError:
+    pass
 
 addon_handle = int(sys.argv[1])
 
