@@ -158,7 +158,7 @@ def create_game_listitem(game, game_day):
     # Label free game of the day if applicable
     try:
         if game['content']['media']['freeGame']:
-            # and game_day >= localToEastern():
+            # and game_day >= localToEastern(): 
             name = colorString(name, FREE)
     except:
         pass
@@ -186,6 +186,9 @@ def create_game_listitem(game, game_day):
     except:
         pass
     """
+    # If set only show free games in the list
+    if ONLY_FREE_GAMES == 'true' and not game['content']['media']['freeGame']:
+        return 
     add_stream(name, title, game_pk, icon, fanart, info, video_info, audio_info, stream_date)
 
 
