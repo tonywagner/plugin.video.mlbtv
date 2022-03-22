@@ -20,7 +20,14 @@
         </description>
         <disclaimer lang="en_GB">Requires an MLB.tv account</disclaimer>
         <news>
-            - Add setting to only show free games (wjanes)
+            Thanks to Tony Wagner for the following updates
+            - added seek in live games, start live from beginning options
+            - hide highlights option and beginning/live dialog when Kodi resume point is used
+            - fixed dialog behavior when resuming
+            - use broadcast start time, also changed spoiler variable to string
+            - fixed catch-up option
+            - verify start offset is valid
+            - get highlights in date/time order
         </news>
         <language>en</language>
         <platform>all</platform>
