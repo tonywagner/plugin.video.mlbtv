@@ -90,7 +90,7 @@ else:
     MASTER_FILE_TYPE = 'master_wired60.m3u8'
     PLAYBACK_SCENARIO = 'HTTP_CLOUD_WIRED_60'
 
-
+API_URL = 'https://statsapi.mlb.com'
 #User Agents
 UA_IPAD = 'AppleCoreMedia/1.0 ( iPad; compatible; 3ivx HLS Engine/2.0.0.382; Win8; x64; 264P AACP AC3P AESD CLCP HTPC HTPI HTSI MP3P MTKA)'
 UA_PC = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36'

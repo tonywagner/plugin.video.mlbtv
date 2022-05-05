@@ -99,7 +99,7 @@ class MLBMonitor(xbmc.Monitor):
     def get_gameday_data(self, game_pk):
         xbmc.log('Skip monitor for ' + game_pk + ' getting gameday data')
 
-        url = 'http://statsapi.mlb.com/api/v1.1/game/' + game_pk + '/feed/live'
+        url = API_URL + '/api/v1.1/game/' + game_pk + '/feed/live'
         headers = {
             'User-agent': UA_PC,
             'Origin': 'https://www.mlb.com',

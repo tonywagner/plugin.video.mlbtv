@@ -31,7 +31,7 @@ def todays_games(game_day):
         create_big_inning_listitem(game_day)
 
     #url = 'http://gdx.mlb.com/components/game/mlb/' + url_game_day + '/grid_ce.json'
-    url = 'https://statsapi.mlb.com/api/v1/schedule'
+    url = API_URL + '/api/v1/schedule'
     url += '?hydrate=broadcasts(all),game(content(all)),probablePitcher,linescore,team,flags'
     url += '&sportId=1,51'
     url += '&date=' + game_day
@@ -43,11 +43,11 @@ def todays_games(game_day):
     r = requests.get(url,headers=headers, verify=VERIFY)
     json_source = r.json()
 
-    try:
-        for game in json_source['dates'][0]['games']:
-            create_game_listitem(game, game_day)
-    except:
-        pass
+    # try:
+    for game in json_source['dates'][0]['games']:
+        create_game_listitem(game, game_day)
+    # except:
+    #     pass
 
     next_day = display_day + timedelta(days=1)
     addDir('[B]%s >>[/B]' % LOCAL_STRING(30011), 101, NEXT_ICON, FANART, next_day.strftime("%Y-%m-%d"))
@@ -178,25 +178,30 @@ def create_game_listitem(game, game_day):
     if fav_game:
         name = '[B]' + name + '[/B]'
 
-    # Label free game of the day if applicable
-    try:
-        if game['content']['media']['freeGame']:
-            # and game_day >= localToEastern(): 
-            name = colorString(name, FREE)
-    except:
-        pass
-
-
     # Get audio/video info
     audio_info, video_info = getAudioVideoInfo()
     # 'duration':length
     info = {'plot': desc, 'tvshowtitle': 'MLB', 'title': title, 'originaltitle': title, 'aired': game_day, 'genre': LOCAL_STRING(700), 'mediatype': 'video'}
 
     # If set only show free games in the list
-    if ONLY_FREE_GAMES == 'true' and not game['content']['media']['freeGame']:
-        return 
+    if ONLY_FREE_GAMES == 'true' and not is_free_game(game['content']['link']):
+        return
     add_stream(name, title, game_pk, icon, fanart, info, video_info, audio_info, stream_date, spoiler)
 
+
+# check if free game
+def is_free_game(link):
+    free = False
+    # checking if game is free now takes an additional call
+    url = API_URL + link
+    headers = {
+        'User-Agent': UA_ANDROID
+    }
+    r = requests.get(url,headers=headers, verify=VERIFY)
+    if r.ok:
+        free = r.json()['media']['freeGame']
+
+    return free
 
 # fetch a list of featured videos
 def get_video_list(list_url=None):
@@ -367,7 +372,7 @@ def create_big_inning_listitem(game_day):
 
 
 def stream_select(game_pk, spoiler='True'):
-    url = 'https://statsapi.mlb.com/api/v1/game/' + game_pk + '/content'
+    url = API_URL + '/api/v1/game/' + game_pk + '/content'
     headers = {
         'User-Agent': UA_ANDROID
     }
@@ -662,7 +667,7 @@ def playAllHighlights(stream_date):
     if n == -1:
         sys.exit()
 
-    url = 'https://statsapi.mlb.com/api/v1/schedule'
+    url = API_URL + '/api/v1/schedule'
     url += '?hydrate=game(content(highlights(highlights)))'
     url += '&sportId=1,51'
     url += '&date=' + stream_date
