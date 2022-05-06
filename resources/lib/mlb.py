@@ -32,7 +32,8 @@ def todays_games(game_day):
 
     #url = 'http://gdx.mlb.com/components/game/mlb/' + url_game_day + '/grid_ce.json'
     url = API_URL + '/api/v1/schedule'
-    url += '?hydrate=broadcasts(all),game(content(all)),probablePitcher,linescore,team,flags'
+    # url += '?hydrate=broadcasts(all),game(content(all)),probablePitcher,linescore,team,flags'
+    url += '?hydrate=game(content(media(epg))),probablePitcher,linescore,team,flags'
     url += '&sportId=1,51'
     url += '&date=' + game_day
 
@@ -75,6 +76,10 @@ def create_game_listitem(game, game_day):
 
     title = away_team + ' at ' + home_team
     title = title
+
+    is_free = False
+    if 'content' in game and 'media' in game['content'] and 'freeGame' in game['content']['media']:
+        is_free = game['content']['media']['freeGame']
 
     fav_game = False
     if game['teams']['away']['team']['name'] in FAV_TEAM:
@@ -178,30 +183,19 @@ def create_game_listitem(game, game_day):
     if fav_game:
         name = '[B]' + name + '[/B]'
 
+    if is_free:
+        name = colorString(name, FREE)
+
     # Get audio/video info
     audio_info, video_info = getAudioVideoInfo()
     # 'duration':length
     info = {'plot': desc, 'tvshowtitle': 'MLB', 'title': title, 'originaltitle': title, 'aired': game_day, 'genre': LOCAL_STRING(700), 'mediatype': 'video'}
 
     # If set only show free games in the list
-    if ONLY_FREE_GAMES == 'true' and not is_free_game(game['content']['link']):
+    if ONLY_FREE_GAMES == 'true' and not is_free:
         return
     add_stream(name, title, game_pk, icon, fanart, info, video_info, audio_info, stream_date, spoiler)
 
-
-# check if free game
-def is_free_game(link):
-    free = False
-    # checking if game is free now takes an additional call
-    url = API_URL + link
-    headers = {
-        'User-Agent': UA_ANDROID
-    }
-    r = requests.get(url,headers=headers, verify=VERIFY)
-    if r.ok:
-        free = r.json()['media']['freeGame']
-
-    return free
 
 # fetch a list of featured videos
 def get_video_list(list_url=None):
