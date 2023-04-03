@@ -16,7 +16,7 @@ jobs:
       uses: xbmc/action-kodi-addon-submitter@v1.3
       with: # Replace all the below variables
         kodi-repository: repo-plugins
-        kodi-version: krypton
+        # kodi-version: krypton
         addon-id: plugin.video.mlbtv
         kodi-matrix: true # Submit a Python 2/3 compatible addon to matrix branch in addition to the target branch
         sub-directory: false
