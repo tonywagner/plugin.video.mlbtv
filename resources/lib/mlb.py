@@ -644,7 +644,8 @@ def create_game_changer_listitem(blackouts, inprogress_exists, game_changer_star
 
 def stream_select(game_pk, spoiler='True', suspended='False', start_inning='False', blackout='False', description=None, name=None, icon=None, fanart=None, from_context_menu=False, autoplay=False, overlay_check='False', gamechanger='False'):
     # fetch the epg content using the game_pk
-    url = f'{API_URL}/api/v1/schedule?gamePk={game_pk}&hydrate=team,linescore,xrefId,flags,review,broadcasts(all),,seriesStatus(useOverride=true),statusFlags,story&sortBy=gameDate,gameStatus,gameType'
+    #url = f'{API_URL}/api/v1/schedule?gamePk={game_pk}&hydrate=team,linescore,xrefId,flags,review,broadcasts(all),,seriesStatus(useOverride=true),statusFlags,story&sortBy=gameDate,gameStatus,gameType'
+    url = f'{API_URL}/api/v1/schedule?gamePk={game_pk}&hydrate=broadcasts(all)'
     headers = {
         'User-Agent': UA_PC
     }
@@ -658,7 +659,7 @@ def stream_select(game_pk, spoiler='True', suspended='False', start_inning='Fals
     selected_content_id = None
     selected_media_state = None
     selected_call_letters = None
-    selected_media_type = None
+    #selected_media_type = None
     stream_url = ''
     broadcast_start_offset = '1' # offset to pass to inputstream adaptive
     broadcast_start_timestamp = None # to pass to skip monitor
@@ -685,28 +686,30 @@ def stream_select(game_pk, spoiler='True', suspended='False', start_inning='Fals
     if ((AUTO_SELECT_STREAM == 'true' and from_context_menu is False and suspended != 'archive') or autoplay is True) and (blackout == 'False' or (blackout != 'True' and blackout < now)):
         # loop through the streams to determine the best match
         for item in epg:        
-            # ignore streams that haven't started yet, audio streams (without a mediaFeedType), and in-market streams
-            if item['mediaState']['mediaStateCode'] != 'MEDIA_OFF' and 'mediaFeedType' in item and not item['mediaFeedType'].startswith('IN_'):
+            # ignore streams that haven't started yet, audio streams, and in-market streams
+            if item['mediaState']['mediaStateCode'] != 'MEDIA_OFF' and item['type'] == 'TV': # and not item['mediaFeedType'].startswith('IN_'):
                 # check if our favorite team (if defined) is associated with this stream
                 # or if no favorite team match, look for the home or national streams
-                if (FAV_TEAM != 'None' and 'mediaFeedSubType' in item and item['mediaFeedSubType'] == getFavTeamId()) or (selected_content_id is None and 'mediaFeedType' in item and (item['mediaFeedType'] == 'HOME' or item['mediaFeedType'] == 'NATIONAL' )):
+                #if (FAV_TEAM != 'None' and 'mediaFeedSubType' in item and item['mediaFeedSubType'] == getFavTeamId()) or (selected_content_id is None and 'mediaFeedType' in item and (item['mediaFeedType'] == 'HOME' or item['mediaFeedType'] == 'NATIONAL' )):
+                if (FAV_TEAM != 'None' and ((item['homeAway'] == 'home' and json_source['dates'][0]['games'][0]['teams']['home']['team']['id'] == getFavTeamId()) or (item['homeAway'] == 'away' and json_source['dates'][0]['games'][0]['teams']['away']['team']['id'] == getFavTeamId()))) or (selected_content_id is None and (item['homeAway'] == 'home' or item['isNational'] == True )):
                     # prefer live streams (suspended games can have both a live and archived stream available)
                     if item['mediaState']['mediaStateCode'] == 'MEDIA_ON':
                         selected_content_id = item['mediaId']
                         selected_media_state = item['mediaState']['mediaStateCode']
                         selected_call_letters = item['callSign']
-                        if 'mediaFeedType' in item:
-                            selected_media_type = item['mediaFeedType']
+                        #if 'mediaFeedType' in item:
+                        #    selected_media_type = item['mediaFeedType']
                         # once we've found a fav team live stream, we don't need to search any further
-                        if FAV_TEAM != 'None' and 'mediaFeedSubType' in item and item['mediaFeedSubType'] == getFavTeamId():
+                        #if FAV_TEAM != 'None' and 'mediaFeedSubType' in item and item['mediaFeedSubType'] == getFavTeamId():
+                        if FAV_TEAM != 'None' and ((item['homeAway'] == 'home' and json_source['dates'][0]['games'][0]['teams']['home']['team']['id'] == getFavTeamId()) or (item['homeAway'] == 'away' and json_source['dates'][0]['games'][0]['teams']['away']['team']['id'] == getFavTeamId())):
                             break
                     # fall back to the first available archive stream, but keep search in case there is a live stream (suspended)
                     elif item['mediaState']['mediaStateCode'] == 'MEDIA_ARCHIVE' and selected_content_id is None:
                         selected_content_id = item['mediaId']
                         selected_media_state = item['mediaState']['mediaStateCode']
                         selected_call_letters = item['callSign']
-                        if 'mediaFeedType' in item:
-                            selected_media_type = item['mediaFeedType']
+                        #if 'mediaFeedType' in item:
+                        #    selected_media_type = item['mediaFeedType']
 
     # if coming from the game changer, just return a flag to indicate whether we need to start an overlay
     if overlay_check == 'True':
@@ -714,13 +717,6 @@ def stream_select(game_pk, spoiler='True', suspended='False', start_inning='Fals
             return True
         else:
             return False
-
-    # loop through the streams to count video broadcasts (for determining whether we need alternate audio)
-    broadcast_count = 0
-    for item in epg:
-        # ignore audio streams (without a mediaFeedType) and in-market streams
-        if 'mediaFeedType' in item and not item['mediaFeedType'].startswith('IN_'):
-            broadcast_count += 1
 
     # fallback to manual stream selection if auto selection is disabled, bypassed, or didn't find anything, and we're not looking to force autoplay
     if selected_content_id is None and autoplay is False:
@@ -730,7 +726,7 @@ def stream_select(game_pk, spoiler='True', suspended='False', start_inning='Fals
         content_id = []
         media_state = []
         call_letters = []
-        media_type = []
+        #media_type = []
         # if using Kodi's default resume ability, we'll omit highlights from our stream selection prompt
         if sys.argv[3] == 'resume:true':
             stream_title = []
@@ -747,18 +743,27 @@ def stream_select(game_pk, spoiler='True', suspended='False', start_inning='Fals
         for item in epg:
             #xbmc.log(str(item))
 
-            # video and audio streams use different fields to indicate home/away
-            if 'mediaFeedType' in item:
-                media_feed_type = str(item['mediaFeedType'])
-            else:
-                media_feed_type = str(item['type'])
-
             # only display if the stream is available (either live or archive) and not in_market
-            if item['mediaState']['mediaStateCode'] != 'MEDIA_OFF' and not media_feed_type.startswith('IN_'):
-                title = media_feed_type.title()
-                title = title.replace('_', ' ')
+            if item['mediaState']['mediaStateCode'] != 'MEDIA_OFF':
                 
-                title = f"{item['type']} ({item['callSign']})"
+                # broadcast title templates:
+                # Away TV (BSSUN)
+                # Home Radio (WFAN)
+                # Away Spanish Radio (WQBN/1300)
+                title = item['homeAway'].capitalize()
+                # add TV to video stream
+                if item['type'] == 'TV':
+                    title += LOCAL_STRING(30392)
+                # add language to audio stream
+                else:
+                    # assume English
+                    #if item['language'] == 'en':
+                    #    title += LOCAL_STRING(30394)
+                    #el
+                    if item['language'] == 'es':
+                        title += LOCAL_STRING(30395)
+                    title += LOCAL_STRING(30393)
+                title = title + " (" + item['callSign'] + ")"
 
                 # modify stream title based on suspension status, if necessary
                 if suspended != 'False':
@@ -792,7 +797,7 @@ def stream_select(game_pk, spoiler='True', suspended='False', start_inning='Fals
                     title += ' (' + suspended_label + ')'
 
                 # display blackout status for video, if available
-                if 'mediaFeedType' in item and blackout != 'False':
+                if item['type'] == 'TV' and blackout != 'False':
                     title = blackoutString(title)
                     title += ' (blackout until ~'
                     if blackout == 'True':
@@ -803,18 +808,18 @@ def stream_select(game_pk, spoiler='True', suspended='False', start_inning='Fals
                     title += ')'
 
                 # insert home/national video streams at the top of the list
-                if 'mediaFeedType' in item and ('HOME' in title.upper() or 'NATIONAL' in title.upper()):
+                if item['type'] == 'TV' and (item['homeAway'] == 'home' or item['isNational'] == True):
                     content_id.insert(0, item['mediaId'])
                     media_state.insert(0, item['mediaState']['mediaStateCode'])
                     call_letters.insert(0, item['callSign'])
-                    media_type.insert(0, media_feed_type)
+                    #media_type.insert(0, media_feed_type)
                     stream_title.insert(highlight_offset, title)
                 # otherwise append other streams to end of list
                 else:
                     content_id.append(item['mediaId'])
                     media_state.append(item['mediaState']['mediaStateCode'])
                     call_letters.append(item['callSign'])
-                    media_type.append(media_feed_type)
+                    #media_type.append(media_feed_type)
                     stream_title.append(title)
 
                 # add an option to directly play live YouTube streams in YouTube add-on
@@ -822,7 +827,7 @@ def stream_select(game_pk, spoiler='True', suspended='False', start_inning='Fals
                     content_id.insert(0, item['youtube']['videoId'])
                     media_state.insert(0, item['mediaState']['mediaStateCode'])
                     call_letters.insert(0, item['callSign'])
-                    media_type.insert(0, media_feed_type)
+                    #media_type.insert(0, media_feed_type)
                     stream_title.insert(highlight_offset, LOCAL_STRING(30414))
 
         # if we didn't find any streams, display an error and exit
@@ -839,7 +844,7 @@ def stream_select(game_pk, spoiler='True', suspended='False', start_inning='Fals
         # stream selection
         elif n > -1 and stream_title[n] != LOCAL_STRING(30391):
             # check if selected stream is a radio stream
-            if "FM (" in stream_title[n] or "AM (" in stream_title[n]:
+            if LOCAL_STRING(30393) in stream_title[n]:
                 stream_type = 'audio'
             # directly play live YouTube streams in YouTube add-on, if requested
             if stream_title[n] == LOCAL_STRING(30414):
@@ -849,7 +854,7 @@ def stream_select(game_pk, spoiler='True', suspended='False', start_inning='Fals
                 selected_content_id = content_id[n-highlight_offset]
                 selected_media_state = media_state[n-highlight_offset]
                 selected_call_letters = call_letters[n-highlight_offset]
-                selected_media_type = media_type[n-highlight_offset]
+                #selected_media_type = media_type[n-highlight_offset]
         # cancel will exit
         elif n == -1:
             sys.exit()
@@ -859,8 +864,7 @@ def stream_select(game_pk, spoiler='True', suspended='False', start_inning='Fals
         # need to log in to get the stream url and headers
         from .account import Account
         account = Account()
-        # get the broadcast start offset and timestamp too, to know where to start playback and calculate skip markers, if necessary
-        stream_url, headers, broadcast_start_offset, broadcast_start_timestamp = account.get_stream(selected_content_id)
+        stream_url, headers = account.get_stream(selected_content_id)
 
         if selected_media_state == 'MEDIA_ON':
             is_live = True
@@ -939,22 +943,10 @@ def stream_select(game_pk, spoiler='True', suspended='False', start_inning='Fals
             # cancel will exit
             if skip_type == -1:
                 sys.exit()
-
-        # grab alternate audio tracks, if necessary
-        alternate_english = None
-        alternate_spanish = None
-        if DISABLE_VIDEO_PADDING == 'false' and broadcast_count == 1 and stream_type == 'video' and len(json_source['media']['epg']) >= 3 and 'items' in json_source['media']['epg'][2]:
-            # national games already include the home streams
-            if selected_media_type == 'NATIONAL':
-                selected_media_type = 'HOME'
-            for item in json_source['media']['epg'][2]['items']:
-                if 'type' in item and item['type'] != selected_media_type and 'contentId' in item:
-                    alt_stream_url, dummy_a, dummy_b, dummy_c = account.get_stream(item['mediaId'])
-                    alt_stream_url = re.sub('/(master_radio_complete|master_radio)', '/48K/48_complete', alt_stream_url)
-                    if 'language' in item and item['language'] == 'en':
-                        alternate_english = alt_stream_url
-                    elif 'language' in item and item['language'] == 'es':
-                        alternate_spanish = alt_stream_url
+                            
+        # get the broadcast_start_timestamp if we are starting at an inning or skipping
+        if skip_type > 0 or start_inning > 0:
+            broadcast_start_timestamp = account.get_broadcast_start_time(stream_url)
 
         # if autoplay, join live
         if autoplay is True:
@@ -964,16 +956,6 @@ def stream_select(game_pk, spoiler='True', suspended='False', start_inning='Fals
             pad = random.randint((3600 / SECONDS_PER_SEGMENT), (7200 / SECONDS_PER_SEGMENT))
             # pass padding as URL querystring parameter
             stream_url = 'http://127.0.0.1:43670/' + stream_url + '?pad=' + str(pad)
-
-        # add extra alternate audio tracks, if necessary
-        if DISABLE_VIDEO_PADDING == 'false' and (alternate_english is not None or alternate_spanish is not None):
-            # pass any extra alternate audio tracks as URL querystring parameters
-            if not stream_url.startswith('http://127.0.0.1:43670/'):
-                stream_url = 'http://127.0.0.1:43670/' + stream_url + '?'
-            if alternate_english is not None:
-                stream_url += '&alternate_english=' + urllib.quote_plus('http://127.0.0.1:43670/' + alternate_english)
-            if alternate_spanish is not None:
-                stream_url += '&alternate_spanish=' + urllib.quote_plus('http://127.0.0.1:43670/' + alternate_spanish)
 
         # valid stream url
         if '.m3u8' in stream_url:
@@ -1038,7 +1020,8 @@ def featured_stream_select(featured_video, name, description, start_inning=None,
     # otherwise assume it is a video title (used to call Big Inning from the schedule)
     else:
         xbmc.log('must search for video url with title')
-        video_list = get_video_list('https://dapi.mlbinfra.com/v2/content/en-us/vsmcontents/mlb-tv-welcome-center-big-inning-show')
+        #video_list = get_video_list('https://dapi.mlbinfra.com/v2/content/en-us/vsmcontents/mlb-tv-welcome-center-big-inning-show')
+        video_list = get_video_list('https://dapi.cms.mlbinfra.com/v2/content/en-us/sel-mlbtv-featured-svod-video-list')
         eventList = None
         if 'items' in video_list:
             eventList = video_list['items']
@@ -1530,7 +1513,7 @@ def live_fav_game():
                 url += '&date=' + game_day
 
                 headers = {
-                    'User-Agent': UA_ANDROID
+                    'User-Agent': UA_PC
                 }
                 r = requests.get(url,headers=headers, verify=VERIFY)
                 json_source = r.json()
