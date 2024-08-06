@@ -675,7 +675,7 @@ def create_game_changer_listitem(blackouts, inprogress_exists, game_changer_star
 def stream_select(game_pk, spoiler='True', suspended='False', start_inning='False', blackout='False', description=None, name=None, icon=None, fanart=None, from_context_menu=False, autoplay=False, overlay_check='False', gamechanger='False'):
     # fetch the epg content using the game_pk
     #url = f'{API_URL}/api/v1/schedule?gamePk={game_pk}&hydrate=team,linescore,xrefId,flags,review,broadcasts(all),,seriesStatus(useOverride=true),statusFlags,story&sortBy=gameDate,gameStatus,gameType'
-    url = f'{API_URL}/api/v1/schedule?gamePk={game_pk}&hydrate=broadcasts(all)'
+    url = f'{API_URL}/api/v1/schedule?gamePk={game_pk}&hydrate=broadcasts(all),game(content(highlights(highlights)))'        
     headers = {
         'User-Agent': UA_PC
     }
@@ -869,8 +869,11 @@ def stream_select(game_pk, spoiler='True', suspended='False', start_inning='Fals
         # stream selection dialog
         n = dialog.select(LOCAL_STRING(30390), stream_title)
         # highlights selection will go to that function and stop processing here
-        if n == 0 and highlight_offset == 1:
-            highlight_select_stream(json_source['highlights']['highlights']['items'], from_context_menu=from_context_menu)
+        if n == 0 and highlight_offset == 1:                        
+            for game in json_source['dates']:                               
+                if 'highlights' in game['games'][0]['content']:                    
+                    highlight_select_stream(game['games'][0]['content']['highlights']['highlights']['items'], from_context_menu=from_context_menu)
+                    break
         # stream selection
         elif n > -1 and stream_title[n] != LOCAL_STRING(30391):
             # check if selected stream is a radio stream
