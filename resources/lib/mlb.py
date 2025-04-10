@@ -1518,9 +1518,10 @@ def live_fav_game():
                 settings.setSetting(id='auto_play_game_checked', value=str(now))
 
                 url = API_URL + '/api/v1/schedule'
-                url += '?hydrate=game(content(media(epg))),team'
+                url += '?hydrate=broadcasts'
                 url += '&sportId=1,51'
                 url += '&date=' + game_day
+                url += '&teamId=' + fav_team_id
 
                 headers = {
                     'User-Agent': UA_PC
@@ -1532,7 +1533,8 @@ def live_fav_game():
 
                 if 'dates' in json_source and len(json_source['dates']) > 0 and 'games' in json_source['dates'][0]:
                     games = json_source['dates'][0]['games']
-                    nonentitlement_data = get_nonentitlement_data()
+                    nonentitlement_data = get_nonentitlement_data(game_day)
+                    found = False
                     for game in games:
                         try:
                             # only check games that include our fav team
@@ -1541,19 +1543,26 @@ def live_fav_game():
                                 if game['status']['abstractGameState'] != 'Final':
                                     # only check games that are entitled and not blacked out
                                     if str(game['gamePk']) not in nonentitlement_data:
-                                        if 'content' in game and 'media' in game['content'] and 'epg' in game['content']['media'] and len(game['content']['media']['epg']) > 0 and 'items' in game['content']['media']['epg'][0]:
-                                            for epg in game['content']['media']['epg'][0]['items']:
+                                        mediaStateCode = None
+                                        for broadcast in game.get('broadcasts', []):
+                                            mediaStateCode = broadcast.get('mediaState', {}).get('mediaStateCode', '')
+                                            if mediaStateCode:
                                                 # if media is off, assume it is still upcoming
-                                                if epg['mediaState'] == 'MEDIA_OFF':
+                                                if mediaStateCode == 'MEDIA_OFF':
                                                     if game['status']['startTimeTBD'] is True:
                                                         upcoming_game = 'TBD'
                                                     else:
                                                         upcoming_game = parse(game['gameDate']) - timedelta(minutes=10)
+                                                    found = True
                                                 # if media is on, that means it is live
-                                                elif game_pk is None and epg['mediaState'] == 'MEDIA_ON':
+                                                elif game_pk is None and mediaStateCode == 'MEDIA_ON':
                                                     game_pk = str(game['gamePk'])
                                                     xbmc.log('Found live fav game ' + game_pk)
-                                                    break
+                                                    found = True
+                                            if found:
+                                                break  # broadcast loop
+                            if found:
+                                break  # game loop
                         except:
                             pass
 
