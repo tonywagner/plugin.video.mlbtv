@@ -39,6 +39,9 @@ class MLBMonitor(xbmc.Monitor):
 
     #Change monitor
     MAX_LEVERAGE = 11
+    
+    #Stream Finder
+    stream_finder_settings = {}
 
     #Structure of game state to store for each game
     GameState = namedtuple('GameState',
@@ -848,6 +851,8 @@ class MLBMonitor(xbmc.Monitor):
             # also update skip adjust values
             self.skip_adjust_start = int(settings.getSetting(id="skip_adjust_start"))
             self.skip_adjust_end = int(settings.getSetting(id="skip_adjust_end"))
+            # also update Stream Finder settings
+            self.stream_finder_settings = json.loads(settings.getSetting(id="stream_finder_settings"))
 
     def get_playing_file(self, player):
         try:
@@ -1284,6 +1289,302 @@ class MLBMonitor(xbmc.Monitor):
         return skip_markers, skip_to_players
 
 
+    def getCurrentGame(self, game, team_data):
+        return team_data[str(game['away_team_id'])]['teamName'] + ' @ ' + team_data[str(game['home_team_id'])]['teamName']
+
+
+    def setCurrentGame(self, cur_game_pk, game, team_data, monitor_name, priority):
+        if cur_game_pk != game['game_pk']:
+            xbmc.log(monitor_name + ' set current game to ' + self.getCurrentGame(game, team_data) + ' due to ' + priority['type'] + ' ' + priority['data'])
+        return game['game_pk'], game['batter']
+        
+    
+    def finder_monitor(self, blackouts):
+        xbmc.log("Finder monitor starting")
+
+        self.mlb_monitor_started = str(datetime.now())
+        settings.setSetting(id='mlb_monitor_started', value=self.mlb_monitor_started)
+        monitor_name = 'Finder monitor from ' + self.mlb_monitor_started
+        xbmc.log(monitor_name + ' started')
+    
+        self.stream_finder_settings = json.loads(settings.getSetting(id="stream_finder_settings"))
+        
+        html_source = self.get_stream_finder_data()
+        
+        team_data = json.loads(re.findall(r'var team_data\s*=\s*([{][^;]+);', html_source, re.MULTILINE)[0])
+        
+        posPlayers = json.loads(re.findall(r'var posPlayers\s*=\s*([{][^}]+[}])', html_source, re.MULTILINE)[0])
+        
+        games_CLI = json.loads(re.findall(r'var games_CLI\s+=\s+([{][^}]+[}])', html_source, re.MULTILINE)[0])
+        
+        LI_table = json.loads(re.findall(r'var LI\s+=\s+([{][^;]+);', html_source, re.MULTILINE)[0])
+        
+        # initialize player to monitor video title
+        player = xbmc.Player()
+        video_title = LOCAL_STRING(30444) + ' ' + self.mlb_monitor_started
+
+        game_refresh_sec = 5
+        stream_refresh_sec = 1
+        # check games every `refresh_sec` but return data from `delay_sec` ago to account for stream delay/buffering
+        refresh_sec = game_refresh_sec
+
+        cur_game_pk = None
+        cur_game_high_LI_flag = 'N'
+        cur_game_high_LI = -3
+
+        u_params = '&name=' + video_title + '&description=' + urllib.quote_plus(LOCAL_STRING(30445)) + '&icon=' + urllib.quote_plus(STREAM_FINDER_ICON) + '&fanart=' + urllib.quote_plus(STREAM_FINDER_FANART) + '&gamechanger=True'
+
+        today = localToEastern()
+        date_string = today
+        
+        counter = round(time.time_ns()/1000)
+
+        while not self.monitor.abortRequested():
+            if refresh_sec != stream_refresh_sec:
+                games = self.get_stream_finder_games(counter)
+                counter += 1
+                
+                active_games = []
+                
+                same_batter = 'N'
+                
+                for game in games:
+                    run1 = None
+                    run2 = None
+                    run3 = None
+                    
+                    if game['gamePk'] in blackouts:
+                        continue
+                    
+                    if str(game['teams']['away']['team']['id']) not in team_data or str(game['teams']['home']['team']['id']) not in team_data:
+                        continue
+                    
+                    if game['linescore']['outs'] == 3:
+                        continue
+                        
+                    if game['status'] != 'active':
+                        continue
+                          
+                    # Goes through ignore list to see if game should be skipped
+                    if 'ignore' in self.stream_finder_settings:
+                        for ignore_team in self.stream_finder_settings['ignore']:
+                            if int(ignore_team) == game['teams']['away']['team']['id'] or int(ignore_team) == game['teams']['home']['team']['id']:
+                                continue
+                        
+                    try:
+                        play_LI = float(LI_table[str(game['linescore']['InnBaseOut'])][str(game['linescore']['RunDiff'])])
+                    except:
+                        play_LI = 0.0
+                            
+                    home_team = str(game['teams']['home']['team']['id'])
+                    if 'include_CLI' in self.stream_finder_settings and self.stream_finder_settings['include_CLI'] == 'Y' and home_team in games_CLI and games_CLI[home_team] != '':
+                        CLI = float(games_CLI[home_team])
+                        LI = play_LI * CLI
+                    else:
+                        LI = play_LI   
+                               
+                    # Baserunners
+                    if game['linescore']['BaseSit'] > 1:
+                        if 'first' in game['linescore']['offense']:
+                            run1 = game['linescore']['offense']['first']['id']
+                        if 'second' in game['linescore']['offense']:
+                            run2 = game['linescore']['offense']['second']['id']
+                        if 'third' in game['linescore']['offense']:
+                            run3 = game['linescore']['offense']['third']['id']
+                                
+                    # Flag to stay on current game if same batter is still at bat
+                    if game['gamePk'] == cur_game_pk and game['linescore']['offense']['batter']['id'] == cur_batter and game['linescore']['outs'] < 3:
+                        same_batter = 'Y'
+                              
+                    # If this is the current game showing
+                    if game['gamePk'] == cur_game_pk:
+                        cur_game_high_LI = LI
+                        # Grabs that games LI to compare to the new high lev game
+                        cur_batter = game['linescore']['offense']['batter']['id']
+                        
+                    # Places data into array
+                    active_games.append({
+                      'LI': LI,
+                      'outs': game['linescore']['outs'],
+                      'game_pk': game['gamePk'],
+                      'away_team_id': game['teams']['away']['team']['id'],
+                      'home_team_id': game['teams']['home']['team']['id'],
+                      'batter': game['linescore']['offense']['batter']['id'],
+                      'pitcher': game['linescore']['defense']['pitcher']['id'],
+                      'ondeck': game['linescore']['offense']['onDeck']['id'],
+                      'run1': run1,
+                      'run2': run2,
+                      'run3': run3,
+                      'inning': game['linescore']['currentInning'],
+                      'half': game['linescore']['half'],
+                      'away_hits': game['linescore']['teams']['away']['hits'],
+                      'home_hits': game['linescore']['teams']['home']['hits'],
+                      'away_runs': game['linescore']['teams']['away']['runs'],
+                      'home_runs': game['linescore']['teams']['home']['runs'],
+                      'codedGameState': game['codedGameState'],
+                      'scheduledInnings': game['scheduledInnings']
+                    })
+                
+                if cur_game_pk is None and len(active_games) == 0:
+                    dialog = xbmcgui.Dialog()
+                    dialog.ok(LOCAL_STRING(30444),LOCAL_STRING(30419))
+                    break
+                
+                games = sorted(active_games, key=lambda x: x['LI'], reverse=True)
+                
+                game_pk = None
+                if 'priority' in self.stream_finder_settings:
+                    for priority in self.stream_finder_settings['priority']:
+                        if same_batter == 'N' or priority['immediate'] == 'Y':
+                            for game in games:
+                                # Batter
+                                if priority['type'] == 'bat' and (int(priority['data']) == game['batter'] or (int(priority['data']) == game['ondeck'] and 'on_deck' in self.stream_finder_settings and self.stream_finder_settings['on_deck'] == 'Y' and game['outs'] < 2)):
+                                    game_pk, cur_batter = self.setCurrentGame(cur_game_pk, game, team_data, monitor_name, priority)
+                                    break
+                                # Pitcher
+                                elif priority['type'] == 'pit' and int(priority['data']) == game['pitcher']:
+                                    game_pk, cur_batter = self.setCurrentGame(cur_game_pk, game, team_data, monitor_name, priority)
+                                    break
+                                # Runner
+                                elif priority['type'] == 'run' and ((int(priority['data']) == game['run1'] and game['run2'] is None) or (int(priority['data']) == game['run2'] and game['run3'] is None)):
+                                    game_pk, cur_batter = self.setCurrentGame(cur_game_pk, game, team_data, monitor_name, priority)
+                                    break
+                                # Team
+                                elif priority['type'] == 'team' and (int(priority['data']) == game['away_team_id'] or int(priority['data']) == game['home_team_id']):
+                                    game_pk, cur_batter = self.setCurrentGame(cur_game_pk, game, team_data, monitor_name, priority)
+                                    break
+                                # Batting Team
+                                elif priority['type'] == 'team_bat' and ((int(priority['data']) == game['away_team_id'] and game['half'] == 1) or (int(priority['data']) == game['home_team_id'] and game['half'] == 2)):
+                                    game_pk, cur_batter = self.setCurrentGame(cur_game_pk, game, team_data, monitor_name, priority)
+                                    break
+                                # Pitching Team
+                                elif priority['type'] == 'team_pit' and ((int(priority['data']) == game['away_team_id'] and game['half'] == 2) or (int(priority['data']) == game['home_team_id'] and game['half'] == 1)):
+                                    game_pk, cur_batter = self.setCurrentGame(cur_game_pk, game, team_data, monitor_name, priority)
+                                    break
+                                # Leverage Index
+                                elif priority['type'] == 'LI' and float(priority['data']) <= game['LI']:
+                                    game_pk, cur_batter = self.setCurrentGame(cur_game_pk, game, team_data, monitor_name, priority)
+                                    break
+                                # No Hitter
+                                elif priority['type'] == 'NoNo' and game['inning'] > int(priority['data']) and ((game['half'] == 1 and game['away_hits'] == 0) or (game['half'] == 2 and game['home_hits'] == 0)):
+                                    game_pk, cur_batter = self.setCurrentGame(cur_game_pk, game, team_data, monitor_name, priority)
+                                    break
+                                # Game Situation
+                                elif priority['type'] == 'GameSit':
+                                    if priority['data'] == 'through5_tie' and game['inning'] > 5 and game['away_runs'] == game['home_runs']:
+                                        game_pk, cur_batter = self.setCurrentGame(cur_game_pk, game, team_data, monitor_name, priority)
+                                        break
+                                    elif priority['data'] == 'through6_tie' and game['inning'] > 6 and game['away_runs'] == game['home_runs']:
+                                        game_pk, cur_batter = self.setCurrentGame(cur_game_pk, game, team_data, monitor_name, priority)
+                                        break
+                                    elif priority['data'] == 'through7_tie' and game['inning'] > 7 and game['away_runs'] == game['home_runs']:
+                                        game_pk, cur_batter = self.setCurrentGame(cur_game_pk, game, team_data, monitor_name, priority)
+                                        break
+                                    elif priority['data'] == 'through8_tie' and game['inning'] > 8 and game['away_runs'] == game['home_runs']:
+                                        game_pk, cur_batter = self.setCurrentGame(cur_game_pk, game, team_data, monitor_name, priority)
+                                        break
+                                    elif priority['data'] == 'through5_1run' and game['inning'] > 5 and abs(game['away_runs'] - game['home_runs']) == 1:
+                                        game_pk, cur_batter = self.setCurrentGame(cur_game_pk, game, team_data, monitor_name, priority)
+                                        break
+                                    elif priority['data'] == 'through6_1run' and game['inning'] > 6 and abs(game['away_runs'] - game['home_runs']) == 1:
+                                        game_pk, cur_batter = self.setCurrentGame(cur_game_pk, game, team_data, monitor_name, priority)
+                                        break
+                                    elif priority['data'] == 'through7_1run' and game['inning'] > 7 and abs(game['away_runs'] - game['home_runs']) == 1:
+                                        game_pk, cur_batter = self.setCurrentGame(cur_game_pk, game, team_data, monitor_name, priority)
+                                        break
+                                    elif priority['data'] == 'through8_1run' and game['inning'] > 8 and abs(game['away_runs'] - game['home_runs']) == 1:
+                                        game_pk, cur_batter = self.setCurrentGame(cur_game_pk, game, team_data, monitor_name, priority)
+                                        break
+                                # Misc
+                                elif priority['type'] == 'Misc':
+                                    # Position player pitching
+                                    if priority['data'] == 'PosP_pit' and game['pitcher'] in posPlayers:
+                                        game_pk, cur_batter = self.setCurrentGame(cur_game_pk, game, team_data, monitor_name, priority)
+                                        break
+                                    # Extra innings
+                                    elif priority['data'] == 'extra' and game['inning'] > game['scheduledInnings']:
+                                        game_pk, cur_batter = self.setCurrentGame(cur_game_pk, game, team_data, monitor_name, priority)
+                                        break
+                                    # Replay
+                                    elif priority['data'] == 'replay' and ('M' in game['codedGameState'] or 'N' in game['codedGameState']):
+                                        game_pk, cur_batter = self.setCurrentGame(cur_game_pk, game, team_data, monitor_name, priority)
+                                        break
+                                
+                            if game_pk is not None:
+                                break
+                            
+                # If no preference items were met
+                if game_pk is None:
+                    # if same batter is still at plate
+                    if same_batter == 'Y':
+                        game_pk = cur_game_pk
+                    else:
+                        # Ignore if current game is not default high LI game
+                        if cur_game_high_LI is None:
+                            cur_game_high_LI = -3
+                        # When the current game showing is the high leverage game (not chosen from priority list) and there is now a different game that is the highest LI game.
+                        # New game's LI must be 0.5 higher than current game to switch
+                        if (cur_game_high_LI_flag == 'Y' and games[0]['LI'] > (cur_game_high_LI + 0.5) and (games[0]['LI'] > 1 or cur_game_high_LI == -3)) or cur_game_high_LI_flag == 'N':
+                            game_pk, cur_batter = self.setCurrentGame(cur_game_pk, games[0], team_data, monitor_name, {'type': 'default', 'data': 'highest leverage'})
+                        else:
+                            game_pk = cur_game_pk # Stay on current game
+                            # cur_batter and cur_game were set earlier while looping through games
+                            
+                        cur_game_high_LI_flag = 'Y' # For next time through
+                        cur_game_high_LI = -3 # Sets to -3, just in case this game ends
+                else:
+                    cur_game_high_LI_flag = 'N' # game was set by priority list
+                    
+                # Only update if this is a different game
+                if game_pk != cur_game_pk:
+                    if cur_game_pk is not None and 'delay' in self.stream_finder_settings and int(self.stream_finder_settings['delay']) > 0:
+                        xbmc.log(monitor_name + ' delaying switch by ' + str(int(self.stream_finder_settings['delay'])))
+                        xbmc.sleep(int(self.stream_finder_settings['delay']))
+                    xbmc.log(monitor_name + ' loading game ' + str(game_pk))
+                    self.stream_started = False
+                    refresh_sec = stream_refresh_sec
+                    #player.stop()
+                    # stop overlay if necessary
+                    self.stop_overlay(monitor_name)
+                    needs_overlay = stream_select(str(game_pk), 'True', 'False', 'False', 'False', LOCAL_STRING(30444), video_title, ICON, None, autoplay=True, overlay_check='True')
+                    # next line helps avoid a crash per https://github.com/xbmc/xbmc/issues/14838#issuecomment-750289254
+                    xbmc.executebuiltin('Dialog.Close(all,true)')
+                    try:
+                        self.mlb_monitor_file = self.get_playing_file(player)
+                    except:
+                        pass
+                    #xbmc.Player().play('plugin://plugin.video.mlbtv/?mode=102&game_pk='+game['state'].game_pk+u_params)
+                    xbmc.executebuiltin('PlayMedia("plugin://plugin.video.mlbtv/?mode=102&game_pk='+str(game_pk)+u_params+'")')
+                    xbmcplugin.endOfDirectory(addon_handle)
+                    # wait for stream start before proceeding
+                    if self.wait_for_stream(str(game_pk)) is True:
+                        xbmc.log(monitor_name + ' loaded stream for ' + str(game_pk))
+                        refresh_sec = game_refresh_sec
+                        if needs_overlay is True:
+                            # wait an extra second
+                            #xbmc.sleep(1000)
+                            if needs_overlay is True:
+                                self.start_overlay(str(game_pk))
+                        xbmc.log(monitor_name + ' loaded game ' + str(game_pk))
+                    cur_game_pk = game_pk
+                      
+
+            if self.monitor.waitForAbort(refresh_sec):
+                xbmc.log(monitor_name + " aborting")
+                break
+            elif self.stream_started == True and (not xbmc.getCondVisibility("Player.HasMedia") or (self.mlb_monitor_file != self.get_playing_file(player)) or (player.getVideoInfoTag().getTitle() != video_title)):
+                xbmc.log(monitor_name + " closing due to stream stopped or changed")
+                break
+            elif self.mlb_monitor_started == '':
+                xbmc.log(monitor_name + " closing due to reset")
+                break
+
+        # stop overlay if necessary
+        self.stop_overlay(monitor_name)
+
+        xbmc.log(monitor_name + " closed")
+                
+
     def change_monitor(self, blackouts):
         xbmc.log("Change monitor starting")
 
@@ -1378,13 +1679,11 @@ class MLBMonitor(xbmc.Monitor):
                             if self.wait_for_stream(game['state'].game_pk) is True:
                                 xbmc.log(monitor_name + ' loaded stream for ' + game['state'].teams)
                                 refresh_sec = game_refresh_sec
-                                if needs_overlay is True or DISABLE_CLOSED_CAPTIONS == 'true':
+                                if needs_overlay is True:
                                     # wait an extra second
                                     #xbmc.sleep(1000)
                                     if needs_overlay is True:
                                         self.start_overlay(game['state'].game_pk)
-                                    if DISABLE_CLOSED_CAPTIONS == 'true':
-                                        self.stop_captions(game['state'].game_pk)
                                 xbmc.log(monitor_name + ' loaded game ' + game['state'].teams)
                             break
                         elif large_leverage_diff:
@@ -1406,6 +1705,36 @@ class MLBMonitor(xbmc.Monitor):
         self.stop_overlay(monitor_name)
 
         xbmc.log(monitor_name + " closed")
+
+
+    # get Stream Finder data
+    def get_stream_finder_data(self):
+        url = 'https://www.baseball-reference.com/stream-finder.shtml'
+        headers = {
+            'User-Agent': UA_PC,
+            'Referer': 'https://www.baseball-reference.com/',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Accept-Encoding': 'gzip, deflate, br, zstd'
+        }
+        r = requests.get(url,headers=headers, verify=VERIFY)
+        html_source = r.text
+        
+        return html_source
+
+
+    # get Stream Finder games
+    def get_stream_finder_games(self, counter):
+        url = 'https://www.baseball-reference.com/nocdn/streamfinder/streamfinder.json?_=' + str(counter)
+        headers = {
+            'User-Agent': UA_PC,
+            'Referer': 'https://www.baseball-reference.com/stream-finder.shtml',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Accept-Encoding': 'gzip, deflate, br, zstd'
+        }
+        r = requests.get(url,headers=headers, verify=VERIFY)
+        json_source = r.json()
+        
+        return json_source
 
 
     # get active live games ordered by leverage
