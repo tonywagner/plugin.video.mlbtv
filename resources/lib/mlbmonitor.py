@@ -1331,8 +1331,10 @@ class MLBMonitor(xbmc.Monitor):
         cur_game_pk = None
         cur_game_high_LI_flag = 'N'
         cur_game_high_LI = -3
+        cur_pitchers = {}
+        pitching_changes  = {}
 
-        u_params = '&name=' + video_title + '&description=' + urllib.quote_plus(LOCAL_STRING(30445)) + '&icon=' + urllib.quote_plus(STREAM_FINDER_ICON) + '&fanart=' + urllib.quote_plus(STREAM_FINDER_FANART) + '&gamechanger=True'
+        u_params = '&name=' + video_title + '&description=' + urllib.quote_plus(LOCAL_STRING(30445)) + '&icon=' + urllib.quote_plus(STREAM_FINDER_ICON) + '&fanart=' + urllib.quote_plus(FANART) + '&gamechanger=True'
 
         today = localToEastern()
         date_string = today
@@ -1344,9 +1346,14 @@ class MLBMonitor(xbmc.Monitor):
                 games = self.get_stream_finder_games(counter)
                 counter += 1
                 
+                if len(games) == 0:
+                    continue
+                
                 active_games = []
                 
                 same_batter = 'N'
+                
+                now = datetime.now()
                 
                 for game in games:
                     run1 = None
@@ -1362,13 +1369,39 @@ class MLBMonitor(xbmc.Monitor):
                     if game['linescore']['outs'] == 3:
                         continue
                         
-                    if game['status'] != 'active':
+                    if 'status' not in game or game['status'] != 'active':
                         continue
                           
                     # Goes through ignore list to see if game should be skipped
                     if 'ignore' in self.stream_finder_settings:
                         for ignore_team in self.stream_finder_settings['ignore']:
                             if int(ignore_team) == game['teams']['away']['team']['id'] or int(ignore_team) == game['teams']['home']['team']['id']:
+                                continue
+                        
+                    gamePk = str(game['gamePk'])
+                    if gamePk in pitching_changes:
+                        if pitching_changes[gamePk] < now:
+                            xbmc.log(monitor_name + ' pitching change complete in game ' + gamePk)
+                            continue
+                        else:
+                            del pitching_changes[gamePk]
+                            
+                    pitching_team_id = None
+                    if game['linescore']['half'] == 1:
+                        pitching_team_id = str(game['teams']['home']['team']['id'])
+                    elif game['linescore']['half'] == 2:
+                        pitching_team_id == str(game['teams']['away']['team']['id'])
+                    
+                    if pitching_team_id is not None:
+                        if gamePk not in cur_pitchers:
+                            cur_pitchers[gamePk] = {}
+                        if  pitching_team_id not in cur_pitchers[gamePk]:
+                            cur_pitchers[gamePk][pitching_team_id] = game['linescore']['defense']['pitcher']['id']
+                        else:
+                            if game['linescore']['defense']['pitcher']['id'] != cur_pitchers[gamePk][pitching_team_id]:
+                                xbmc.log(monitor_name + ' pitching change begun in game ' + gamePk + ' for ' + team_data[pitching_team_id]['teamName'])
+                                pitching_changes[gamePk] = now + timedelta(seconds=114)
+                                cur_pitchers[gamePk][pitching_team_id] = game['linescore']['defense']['pitcher']['id']
                                 continue
                         
                     try:
@@ -1393,7 +1426,7 @@ class MLBMonitor(xbmc.Monitor):
                             run3 = game['linescore']['offense']['third']['id']
                                 
                     # Flag to stay on current game if same batter is still at bat
-                    if game['gamePk'] == cur_game_pk and game['linescore']['offense']['batter']['id'] == cur_batter and game['linescore']['outs'] < 3:
+                    if game['gamePk'] == cur_game_pk and game['linescore']['offense']['batter']['id'] == cur_batter and game['linescore']['outs'] < 3 and (('balls' in game['linescore'] and game['linescore']['balls'] not in [0,4]) or ('strikes' in game['linescore'] and game['linescore']['strikes'] not in [0,3])):
                         same_batter = 'Y'
                               
                     # If this is the current game showing
@@ -1724,17 +1757,26 @@ class MLBMonitor(xbmc.Monitor):
 
     # get Stream Finder games
     def get_stream_finder_games(self, counter):
-        url = 'https://www.baseball-reference.com/nocdn/streamfinder/streamfinder.json?_=' + str(counter)
-        headers = {
-            'User-Agent': UA_PC,
-            'Referer': 'https://www.baseball-reference.com/stream-finder.shtml',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-            'Accept-Encoding': 'gzip, deflate, br, zstd'
-        }
-        r = requests.get(url,headers=headers, verify=VERIFY)
-        json_source = r.json()
-        
-        return json_source
+        games = []
+        try:
+            url = 'https://www.baseball-reference.com/nocdn/streamfinder/streamfinder.json?_=' + str(counter)
+            headers = {
+                'User-Agent': UA_PC,
+                'Referer': 'https://www.baseball-reference.com/stream-finder.shtml',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+                'Accept-Encoding': 'gzip, deflate, br, zstd'
+            }
+            r = requests.get(url,headers=headers, verify=VERIFY)
+            games = r.json()
+        except Exception as e:
+            xbmc.log('ERROR get_stream_finder_games invalid response : ' + str(e))
+            try:
+                xbmc.log(r.text)
+            except:
+                pass
+            pass
+            
+        return games
 
 
     # get active live games ordered by leverage
