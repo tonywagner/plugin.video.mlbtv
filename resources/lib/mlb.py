@@ -748,14 +748,15 @@ def stream_select(game_pk, spoiler='True', suspended='False', start_inning='Fals
     entitled_feeds = []
     blackout_feeds = []
     if 'results' in json_source and len(json_source['results']) > 0:
-        for feed in json_source['results'][0]['videoFeeds']:
-            if feed['entitled'] == True:
-                entitled_feeds.append(feed['mediaId'])
-            if feed['blackedOut'] == True:
-                blackout_feeds.append(feed['mediaId'])
-        for feed in json_source['results'][0]['audioFeeds']:
-            if feed['entitled'] == True:
-                entitled_feeds.append(feed['mediaId'])
+        for result in json_source['results']:
+            for feed in result['videoFeeds']:
+                if feed['entitled'] == True:
+                    entitled_feeds.append(feed['mediaId'])
+                if feed['blackedOut'] == True:
+                    blackout_feeds.append(feed['mediaId'])
+            for feed in result['audioFeeds']:
+                if feed['entitled'] == True:
+                    entitled_feeds.append(feed['mediaId'])
     
     # fetch the epg content using the game_pk
     #url = f'{API_URL}/api/v1/schedule?gamePk={game_pk}&hydrate=team,linescore,xrefId,flags,review,broadcasts(all),,seriesStatus(useOverride=true),statusFlags,story&sortBy=gameDate,gameStatus,gameType'
@@ -835,7 +836,7 @@ def stream_select(game_pk, spoiler='True', suspended='False', start_inning='Fals
 
     # if coming from the game changer, just return a flag to indicate whether we need to start an overlay
     if overlay_check == 'True':
-        if HIDE_SCORES_TICKER == 'true' and stream_type == 'video' and selected_call_letters.startswith(SCORES_TICKER_NETWORK):
+        if HIDE_SCORES_TICKER == 'true' and stream_type == 'video' and selected_call_letters is not None and selected_call_letters.startswith(SCORES_TICKER_NETWORK):
             return True
         else:
             return False

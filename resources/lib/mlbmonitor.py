@@ -56,6 +56,31 @@ class MLBMonitor(xbmc.Monitor):
      'new_batter',
      'leverage_adjust'])
 
+    #Base situation table for Stream Finder
+    #placeholder data, still needs to be updated for actual baserunner situation numbers!
+    BASESIT_TABLE = {
+      '0': {
+        '0': {
+          '0': 1,
+          '1': 8
+        },
+        '1': {
+          '0': 4,
+          '1': 5
+        }
+      },
+      '1': {
+        '0': {
+          '0': 2,
+          '1': 7
+        },
+        '1': {
+          '0': 3,
+          '1': 6
+        }
+      }
+    }
+    
     #Leverage index table, used to comput leverage index from game state
     LI_TABLE = {
         1: {
@@ -1343,8 +1368,9 @@ class MLBMonitor(xbmc.Monitor):
 
         while not self.monitor.abortRequested():
             if refresh_sec != stream_refresh_sec:
-                games = self.get_stream_finder_games(counter)
-                counter += 1
+                #games = self.get_stream_finder_games(counter)
+                #counter += 1
+                games = self.get_games()
                 
                 if len(games) == 0:
                     continue
@@ -1360,7 +1386,7 @@ class MLBMonitor(xbmc.Monitor):
                     run2 = None
                     run3 = None
                     
-                    if game['gamePk'] in blackouts:
+                    if str(game['gamePk']) in blackouts:
                         continue
                     
                     if str(game['teams']['away']['team']['id']) not in team_data or str(game['teams']['home']['team']['id']) not in team_data:
@@ -1368,22 +1394,30 @@ class MLBMonitor(xbmc.Monitor):
                     
                     if game['linescore']['outs'] == 3:
                         continue
+                    
+                    if 'inningState' in game['linescore'] and game['linescore']['inningState'] not in ['Top', 'Bottom']:
+                        continue
                         
                     if 'status' not in game or game['status'] != 'active':
                         continue
                           
                     # Goes through ignore list to see if game should be skipped
                     if 'ignore' in self.stream_finder_settings:
+                        ignore = False
                         for ignore_team in self.stream_finder_settings['ignore']:
-                            if int(ignore_team) == game['teams']['away']['team']['id'] or int(ignore_team) == game['teams']['home']['team']['id']:
-                                continue
+                            if ignore_team == str(game['teams']['away']['team']['id']) or ignore_team == str(game['teams']['home']['team']['id']):
+                                ignore = True
+                                break
+                        if ignore == True:
+                            continue
                         
                     gamePk = str(game['gamePk'])
                     if gamePk in pitching_changes:
-                        if pitching_changes[gamePk] < now:
-                            xbmc.log(monitor_name + ' pitching change complete in game ' + gamePk)
+                        if pitching_changes[gamePk] > now:
+                            xbmc.log(monitor_name + ' pitching change in progress in game ' + gamePk)
                             continue
                         else:
+                            xbmc.log(monitor_name + ' pitching change complete in game ' + gamePk)
                             del pitching_changes[gamePk]
                             
                     pitching_team_id = None
@@ -1395,7 +1429,7 @@ class MLBMonitor(xbmc.Monitor):
                     if pitching_team_id is not None:
                         if gamePk not in cur_pitchers:
                             cur_pitchers[gamePk] = {}
-                        if  pitching_team_id not in cur_pitchers[gamePk]:
+                        if pitching_team_id not in cur_pitchers[gamePk]:
                             cur_pitchers[gamePk][pitching_team_id] = game['linescore']['defense']['pitcher']['id']
                         else:
                             if game['linescore']['defense']['pitcher']['id'] != cur_pitchers[gamePk][pitching_team_id]:
@@ -1464,6 +1498,13 @@ class MLBMonitor(xbmc.Monitor):
                     break
                 
                 games = sorted(active_games, key=lambda x: x['LI'], reverse=True)
+                xbmc.log(monitor_name + ' active games ' + json.dumps(games))
+                xbmc.log(monitor_name + ' current pitchers ' + json.dumps(cur_pitchers))
+                for key, value in pitching_changes.items():
+                    xbmc.log(monitor_name + ' pitching change in game ' + key + ' until ' + str(value))
+                
+                if len(active_games) == 0:
+                    continue
                 
                 game_pk = None
                 if 'priority' in self.stream_finder_settings:
@@ -1776,6 +1817,153 @@ class MLBMonitor(xbmc.Monitor):
                 pass
             pass
             
+        return games
+
+
+    def is_runner(self, base):
+        if base is None:
+            return '0'
+        else:
+            return '1'
+            
+    def basesit(self, first, second, third):
+        return self.BASESIT_TABLE[self.is_runner(first)][self.is_runner(second)][self.is_runner(third)]            
+    
+    # get alternate game data for stream finder
+    def get_games(self):
+        url = 'http://statsapi.mlb.com/api/v1/schedule?sportId=1&hydrate=linescore,team,flags,gameInfo'
+        headers = {
+            'User-Agent': UA_PC,
+            'Origin': 'https://www.mlb.com',
+            'Referer': 'https://www.mlb.com/',
+            'Content-Type': 'application/json',
+            'Accept-Encoding': 'gzip, deflate, br'
+        }
+        r = requests.get(url,headers=headers, verify=VERIFY)
+        json_source = r.json()
+        
+        games = []
+
+        if 'dates' in json_source and len(json_source['dates']) == 1 and 'games' in json_source['dates'][0] and len(json_source['dates'][0]['games']) > 0:
+            for game in json_source['dates'][0]['games']:
+                currentInning = 1
+                if 'currentInning' in game['linescore']:
+                    currentInning = game['linescore']['currentInning']
+                inningState = 'Top'
+                if 'inningState' in game['linescore']:
+                    inningState = game['linescore']['inningState']
+                balls = 0
+                if 'balls' in game['linescore']:
+                    balls = game['linescore']['balls']
+                strikes = 0
+                if 'strikes' in game['linescore']:
+                    strikes = game['linescore']['strikes']
+                outs = 0
+                if 'outs' in game['linescore']:
+                    outs = game['linescore']['outs']
+                status = 'scheduled'
+                if game['status']['detailedState'] == 'In Progress':
+                    status = 'active'
+                half = 1
+                if 'inningHalf' in game['linescore']:
+                    if game['linescore']['inningHalf'] == 'Bottom':
+                        half = 2
+                away_runs = 0
+                if 'runs' in game['linescore']['teams']['away']:
+                    away_runs = game['linescore']['teams']['away']['runs']
+                away_hits = 0
+                if 'hits' in game['linescore']['teams']['away']:
+                    away_hits = game['linescore']['teams']['away']['hits']
+                home_runs = 0
+                if 'runs' in game['linescore']['teams']['home']:
+                    home_runs = game['linescore']['teams']['home']['runs']
+                home_hits = 0
+                if 'hits' in game['linescore']['teams']['home']:
+                    home_hits = game['linescore']['teams']['home']['hits']
+                pitcher = None
+                if 'pitcher' in game['linescore']['defense']:
+                    pitcher = game['linescore']['defense']['pitcher']['id']
+                batter = None
+                if 'batter' in game['linescore']['offense']:
+                    batter = game['linescore']['offense']['batter']['id']
+                onDeck = None
+                if 'onDeck' in game['linescore']['offense']:
+                    onDeck = game['linescore']['offense']['onDeck']['id']
+                first = None
+                if 'first' in game['linescore']['offense']:
+                    first = game['linescore']['offense']['first']['id']
+                second = None
+                if 'second' in game['linescore']['offense']:
+                    second = game['linescore']['offense']['second']['id']
+                third = None
+                if 'third' in game['linescore']['offense']:
+                    third = game['linescore']['offense']['third']['id']
+                
+                basesit = self.basesit(first, second, third)
+                innbaseout = str(currentInning) + str(half) + str(basesit) + str(outs)
+                
+                games.append({
+                  'gamePk': game['gamePk'],
+                  'codedGameState': game['status']['codedGameState'],
+                  'status': status,
+                  'scheduledInnings': game['scheduledInnings'],
+                  'teams': {
+                    'away': {
+                      'team': {
+                        'id': game['teams']['away']['team']['id']
+                      }
+                    },
+                    'home': {
+                      'team': {
+                        'id': game['teams']['home']['team']['id']
+                      }
+                    }
+                  },
+                  'linescore': {
+                    'InnBaseOut': innbaseout,
+                    'RunDiff': abs(away_runs - home_runs),
+                    'BaseSit': basesit,
+                    'balls': balls,
+                    'strikes': strikes,
+                    'outs': outs,
+                    'currentInning': currentInning,
+                    'inningState': inningState,
+                    'half': half,
+                    'teams': {
+                      'away': {
+                        'runs': home_runs,
+                        'hits': home_hits
+                      },
+                      'home': {
+                        'runs': home_runs,
+                        'hits': home_hits
+                      }
+                    },
+                    'defense': {
+                      'pitcher': {
+                        'id': pitcher
+                      }
+                    },
+                    'offense': {
+                      'onDeck': {
+                        'id': onDeck
+                      },
+                      'third': {
+                        'id': third
+                      },
+                      'second': {
+                        'id': second
+                      },
+                      'first': {
+                        'id': first
+                      },
+                      'batter': {
+                        'id': batter
+                      }
+                    }
+                  }
+                })
+        
         return games
 
 
