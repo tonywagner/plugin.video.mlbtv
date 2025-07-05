@@ -62,21 +62,21 @@ class MLBMonitor(xbmc.Monitor):
       '0': {
         '0': {
           '0': 1,
-          '1': 8
+          '1': 5
         },
         '1': {
-          '0': 4,
-          '1': 5
+          '0': 3,
+          '1': 7
         }
       },
       '1': {
         '0': {
           '0': 2,
-          '1': 7
+          '1': 6
         },
         '1': {
-          '0': 3,
-          '1': 6
+          '0': 4,
+          '1': 8
         }
       }
     }
@@ -1634,11 +1634,13 @@ class MLBMonitor(xbmc.Monitor):
                     if self.wait_for_stream(str(game_pk)) is True:
                         xbmc.log(monitor_name + ' loaded stream for ' + str(game_pk))
                         refresh_sec = game_refresh_sec
-                        if needs_overlay is True:
+                        if needs_overlay is True or DISABLE_CLOSED_CAPTIONS == 'true':
                             # wait an extra second
                             #xbmc.sleep(1000)
                             if needs_overlay is True:
                                 self.start_overlay(str(game_pk))
+                            if DISABLE_CLOSED_CAPTIONS == 'true':
+                                self.stop_captions(str(game_pk))
                         xbmc.log(monitor_name + ' loaded game ' + str(game_pk))
                     cur_game_pk = game_pk
                       
@@ -1753,11 +1755,13 @@ class MLBMonitor(xbmc.Monitor):
                             if self.wait_for_stream(game['state'].game_pk) is True:
                                 xbmc.log(monitor_name + ' loaded stream for ' + game['state'].teams)
                                 refresh_sec = game_refresh_sec
-                                if needs_overlay is True:
+                                if needs_overlay is True or DISABLE_CLOSED_CAPTIONS == 'true':
                                     # wait an extra second
                                     #xbmc.sleep(1000)
                                     if needs_overlay is True:
                                         self.start_overlay(game['state'].game_pk)
+                                    if DISABLE_CLOSED_CAPTIONS == 'true':
+                                        self.stop_captions(game['state'].game_pk)
                                 xbmc.log(monitor_name + ' loaded game ' + game['state'].teams)
                             break
                         elif large_leverage_diff:
