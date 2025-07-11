@@ -943,6 +943,8 @@ def stream_select(game_pk, spoiler='True', suspended='False', start_inning='Fals
                 p = dialog.select(LOCAL_STRING(30396), start_options)
                 # catch up
                 if p == 0:
+                    if DISABLE_CLOSED_CAPTIONS == 'true' and not stream_url.startswith('http://127.0.0.1:43670/'):
+                        stream_url = 'http://127.0.0.1:43670/' + stream_url
                     # create an item for the video stream
                     listitem = stream_to_listitem(stream_url, headers, description, name, icon, fanart)
                     # pass along the highlights and the video stream item to play as a playlist and stop processing here
@@ -1021,6 +1023,9 @@ def stream_select(game_pk, spoiler='True', suspended='False', start_inning='Fals
 
         # valid stream url
         if '.m3u8' in stream_url:
+            if DISABLE_CLOSED_CAPTIONS == 'true' and not stream_url.startswith('http://127.0.0.1:43670/'):
+                stream_url = 'http://127.0.0.1:43670/' + stream_url
+            
             play_stream(stream_url, headers, description, title=name, icon=icon, fanart=fanart, start=broadcast_start_offset, stream_type=stream_type, music_type_unset=from_context_menu)
 
             # start the monitor if a skip type or start inning has been requested and we have a broadcast start timestamp
