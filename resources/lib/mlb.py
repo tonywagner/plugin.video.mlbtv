@@ -689,6 +689,48 @@ def create_game_changer_listitem(blackouts, inprogress_exists, game_changer_star
 
 
 def stream_select(game_pk, spoiler='True', suspended='False', start_inning='False', blackout='False', description=None, name=None, icon=None, fanart=None, from_context_menu=False, autoplay=False, overlay_check='False', gamechanger='False'):
+    # fetch the entitlements using the game_pk
+    from .account import Account
+    account = Account()
+    login_token = account.login_token()
+    okta_id = account.okta_id()
+    
+    url = 'https://mastapi.mobile.mlbinfra.com/api/epg/v3/search?exp=MLB&gamePk=' + game_pk
+    headers = {
+        'accept': '*/*',
+        'accept-language': 'en-US,en;q=0.9',
+        'cache-control': 'no-cache',
+        'content-type': 'application/json',
+        'origin': 'https://www.mlb.com', 
+        'pragma': 'no-cache',
+        'priority': 'u=1, i', 
+        'referer': 'https://www.mlb.com/', 
+        'sec-ch-ua': '"Not(A:Brand";v="99", "Google Chrome";v="133", "Chromium";v="133"', 
+        'sec-ch-ua-mobile': '?0', 
+        'sec-ch-ua-platform': '"macOS"', 
+        'sec-fetch-dest': 'empty', 
+        'sec-fetch-mode': 'cors', 
+        'sec-fetch-site': 'same-site', 
+        'user-agent': UA_PC
+    }
+    if login_token is not None and okta_id is not None:
+        headers['authorization'] = 'Bearer ' + login_token
+        headers['x-okta-id'] = okta_id
+    r = requests.get(url,headers=headers, verify=VERIFY)
+    json_source = r.json()
+    entitled_feeds = []
+    blackout_feeds = []
+    if 'results' in json_source and len(json_source['results']) > 0:
+        for result in json_source['results']:
+            for feed in result['videoFeeds']:
+                if feed['entitled'] == True:
+                    entitled_feeds.append(feed['mediaId'])
+                if feed['blackedOut'] == True:
+                    blackout_feeds.append(feed['mediaId'])
+            for feed in result['audioFeeds']:
+                if feed['entitled'] == True:
+                    entitled_feeds.append(feed['mediaId'])
+    
     # fetch the epg content using the game_pk
     #url = f'{API_URL}/api/v1/schedule?gamePk={game_pk}&hydrate=team,linescore,xrefId,flags,review,broadcasts(all),,seriesStatus(useOverride=true),statusFlags,story&sortBy=gameDate,gameStatus,gameType'
     url = f'{API_URL}/api/v1/schedule?gamePk={game_pk}&hydrate=broadcasts(all),game(content(highlights(highlights)))'        
@@ -743,9 +785,9 @@ def stream_select(game_pk, spoiler='True', suspended='False', start_inning='Fals
             # ignore streams that haven't started yet, audio streams, and in-market streams
             if item['mediaState']['mediaStateCode'] != 'MEDIA_OFF' and item['type'] == 'TV': # and not item['mediaFeedType'].startswith('IN_'):
                 # check if our favorite team (if defined) is associated with this stream
-                # or if no favorite team match, look for the home or national streams
+                # or if no favorite team match, prefer the home or national streams
                 #if (FAV_TEAM != 'None' and 'mediaFeedSubType' in item and item['mediaFeedSubType'] == getFavTeamId()) or (selected_content_id is None and 'mediaFeedType' in item and (item['mediaFeedType'] == 'HOME' or item['mediaFeedType'] == 'NATIONAL' )):
-                if (FAV_TEAM != 'None' and ((item['homeAway'] == 'home' and str(json_source['dates'][0]['games'][0]['teams']['home']['team']['id']) == str(getFavTeamId())) or (item['homeAway'] == 'away' and str(json_source['dates'][0]['games'][0]['teams']['away']['team']['id']) == str(getFavTeamId())))) or (selected_content_id is None and (item['homeAway'] == 'home' or item['isNational'] == True )):
+                if item['mediaId'] in entitled_feeds and item['mediaId'] not in blackout_feeds and ((FAV_TEAM != 'None' and ((item['homeAway'] == 'home' and str(json_source['dates'][0]['games'][0]['teams']['home']['team']['id']) == str(getFavTeamId())) or (item['homeAway'] == 'away' and str(json_source['dates'][0]['games'][0]['teams']['away']['team']['id']) == str(getFavTeamId())))) or (item['homeAway'] == 'home' or item['isNational'] == True ) or selected_content_id is None):
                     # prefer live streams (suspended games can have both a live and archived stream available)
                     if item['mediaState']['mediaStateCode'] == 'MEDIA_ON':
                         selected_content_id = item['mediaId']
@@ -767,7 +809,7 @@ def stream_select(game_pk, spoiler='True', suspended='False', start_inning='Fals
 
     # if coming from the game changer, just return a flag to indicate whether we need to start an overlay
     if overlay_check == 'True':
-        if HIDE_SCORES_TICKER == 'true' and stream_type == 'video' and selected_call_letters.startswith(SCORES_TICKER_NETWORK):
+        if HIDE_SCORES_TICKER == 'true' and stream_type == 'video' and selected_call_letters is not None and selected_call_letters.startswith(SCORES_TICKER_NETWORK):
             return True
         else:
             return False
@@ -851,14 +893,14 @@ def stream_select(game_pk, spoiler='True', suspended='False', start_inning='Fals
                     title += ' (' + suspended_label + ')'
 
                 # display non-entitlement status for a stream, if applicable
-                if blackout == 'True':
+                if blackout == 'True' or item['mediaId'] not in entitled_feeds:
                     title = blackoutString(title)
                     title += ' (not entitled)'
                 # display blackout status for video, if available
-                elif item['type'] == 'TV' and blackout != 'False':
+                elif item['type'] == 'TV' and (blackout != 'False' or item['mediaId'] in blackout_feeds):
                     title = blackoutString(title)
                     title += ' (blackout until ~'
-                    if blackout == 'True':
+                    if blackout == 'True' or item['mediaId'] in blackout_feeds:
                         title += '2.5 hours after'
                     else:
                         blackout_display_time = get_display_time(UTCToLocal(blackout))
