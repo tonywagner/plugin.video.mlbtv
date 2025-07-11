@@ -197,7 +197,7 @@ msgid "Choose Stream Quality"
 msgstr ""
 
 msgctxt "#30375"
-msgid "Watch all the day's highlights for "
+msgid "Click the date to watch all recaps or condensed games for "
 msgstr ""
 
 msgctxt "#30380"

@@ -36,7 +36,11 @@ def todays_games(game_day, start_inning='False', sport=MLB_ID, teams='None'):
 
     addDir('[B]<< %s[/B]' % LOCAL_STRING(30010), 101, PREV_ICON, FANART, prev_day.strftime("%Y-%m-%d"), start_inning, sport, teams)
 
-    date_display = '[B][I]' + colorString(display_day.strftime("%A, %m/%d/%Y"), GAMETIME_COLOR) + '[/I][/B]'
+    # add recap note to past day titles
+    recap_note = ''
+    if sport == MLB_ID and game_day < today:
+        recap_note = ' (watch all recaps)'
+    date_display = '[B][I]' + colorString(display_day.strftime("%A, %m/%d/%Y") + recap_note, GAMETIME_COLOR) + '[/I][/B]'
 
     addPlaylist(date_display, str(game_day), 900, ICON, FANART)
 
@@ -1384,12 +1388,12 @@ def playAllHighlights(stream_date):
                 for item in game['content']['highlights']['highlights']['items']:
                     try:
                         title = item['headline'].strip().lower()
-                        if (n == 0 and (' vs ' in title or ' vs. ' in title or ' versus ' in title or ' at ' in title or '@' in title) and (title.endswith(' highlights') or title.endswith(' recap'))) or (n == 1 and title.includes('condensed')):
+                        if (n == 0 and (' vs ' in title or ' vs. ' in title or ' versus ' in title or ' at ' in title or '@' in title) and (title.endswith(' highlights') or title.endswith(' recap'))) or (n == 1 and 'condensed' in title):
                             for playback in item['playbacks']:
                                 if 'hlsCloud' in playback['name']:
                                     clip_url = playback['url']
                                     break
-                            listitem = xbmcgui.ListItem(clip_url)
+                            listitem = xbmcgui.ListItem(item['headline'])
                             icon = item['image']['cuts'][0]['src']
                             listitem.setArt({'icon': icon, 'thumb': icon, 'fanart': fanart})
                             listitem.setInfo(type="Video", infoLabels={"Title": item['headline']})
