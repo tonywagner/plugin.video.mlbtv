@@ -26,6 +26,7 @@
             - fix for disable captions on catch up
             - fix and improvements for play all recaps option
             - support for single team packages in stream selection
+            - support for Stream Finder (auto-switching based on custom criteria)
         </news>
         <language>en</language>
         <platform>all</platform>

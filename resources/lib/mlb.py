@@ -134,6 +134,8 @@ def todays_games(game_day, start_inning='False', sport=MLB_ID, teams='None'):
             game_changer_start = game_changer_starts[1]
             game_changer_end = game_changer_starts[len(game_changer_starts) - 2]
             create_game_changer_listitem(blackouts, inprogress_exists, game_changer_start, game_changer_end)
+            create_stream_finder_listitem(blackouts, inprogress_exists, game_changer_start, game_changer_end)
+
 
     try:
         for game in remaining_games:
@@ -684,6 +686,31 @@ def create_game_changer_listitem(blackouts, inprogress_exists, game_changer_star
     liz.setProperty("IsPlayable", "true")
     liz.setArt({'icon': ICON, 'thumb': ICON, 'fanart': FANART})
     u=sys.argv[0]+"?mode="+str(500)+"&name="+urllib.quote_plus(name)+"&description="+urllib.quote_plus(desc)+"&blackout="+urllib.quote_plus(','.join(blackouts))
+    xbmcplugin.addDirectoryItem(handle=addon_handle,url=u,listitem=liz,isFolder=False)
+    xbmcplugin.setContent(addon_handle, 'episodes')
+
+
+# display a Stream Finder item within a game list
+def create_stream_finder_listitem(blackouts, inprogress_exists, game_changer_start, game_changer_end):
+    display_title = LOCAL_STRING(30444)
+
+    # format the time for display
+    game_time = get_display_time(UTCToLocal(stringToDate(game_changer_start, "%Y-%m-%dT%H:%M:%SZ"))) + ' - ' + get_display_time(UTCToLocal(stringToDate(game_changer_end, "%Y-%m-%dT%H:%M:%SZ") + timedelta(hours=3) + timedelta(minutes=30)))
+
+    if inprogress_exists:
+        display_title = LOCAL_STRING(30367) + LOCAL_STRING(30444)
+        game_time = colorString(game_time, LIVE)
+
+    name = game_time + ' ' + display_title
+
+    desc = LOCAL_STRING(30445) + 'http://' + xbmc.getIPAddress() + ':43670'
+
+    # create the list item
+    liz=xbmcgui.ListItem(name)
+    liz.setInfo( type="Video", infoLabels={ "Title": name, 'plot': desc } )
+    liz.setProperty("IsPlayable", "true")
+    liz.setArt({'icon': STREAM_FINDER_ICON, 'thumb': STREAM_FINDER_ICON, 'fanart': FANART})
+    u=sys.argv[0]+"?mode="+str(501)+"&name="+urllib.quote_plus(name)+"&description="+urllib.quote_plus(desc)+"&blackout="+urllib.quote_plus(','.join(blackouts))
     xbmcplugin.addDirectoryItem(handle=addon_handle,url=u,listitem=liz,isFolder=False)
     xbmcplugin.setContent(addon_handle, 'episodes')
 
