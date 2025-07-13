@@ -57,7 +57,6 @@ class MLBMonitor(xbmc.Monitor):
      'leverage_adjust'])
 
     #Base situation table for Stream Finder
-    #placeholder data, still needs to be updated for actual baserunner situation numbers!
     BASESIT_TABLE = {
       '0': {
         '0': {
@@ -1354,6 +1353,7 @@ class MLBMonitor(xbmc.Monitor):
         refresh_sec = game_refresh_sec
 
         cur_game_pk = None
+        cur_batter = None
         cur_game_high_LI_flag = 'N'
         cur_game_high_LI = -3
         cur_pitchers = {}
