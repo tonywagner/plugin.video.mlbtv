@@ -1339,7 +1339,7 @@ class MLBMonitor(xbmc.Monitor):
         
         posPlayers = json.loads(re.findall(r'var posPlayers\s*=\s*([{][^}]+[}])', html_source, re.MULTILINE)[0])
         
-        games_CLI = json.loads(re.findall(r'var games_CLI\s+=\s+([{][^}]+[}])', html_source, re.MULTILINE)[0])
+        games_CLI = json.loads(re.findall(r'var games_CLI\s+=\s+([{][^}]*[}])', html_source, re.MULTILINE)[0])
         
         LI_table = json.loads(re.findall(r'var LI\s+=\s+([{][^;]+);', html_source, re.MULTILINE)[0])
         
