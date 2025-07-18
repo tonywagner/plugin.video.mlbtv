@@ -1090,7 +1090,7 @@ def stream_select(game_pk, spoiler='True', suspended='False', start_inning='Fals
             broadcast_start_offset = '-1'
         # if not live and no spoilers and not audio, generate a random number of segments to pad at end of proxy stream url
         elif DISABLE_VIDEO_PADDING == 'false' and is_live is False and spoiler == 'False' and stream_type != 'audio':
-            pad = random.randint((3600 / SECONDS_PER_SEGMENT), (7200 / SECONDS_PER_SEGMENT))
+            pad = random.randint((3600 // SECONDS_PER_SEGMENT), (7200 // SECONDS_PER_SEGMENT))
             # pass padding as URL querystring parameter
             stream_url = 'http://127.0.0.1:43670/' + stream_url + '?pad=' + str(pad)
 

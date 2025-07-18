@@ -143,7 +143,7 @@ elif mode == 200:
     search_txt = ''
     dialog = xbmcgui.Dialog()
     game_day = dialog.input('Enter date (yyyy-mm-dd)', type=xbmcgui.INPUT_ALPHANUM)
-    mat = re.match('(\d{4})-(\d{2})-(\d{2})$', game_day)
+    mat = re.match(r'(\d{4})-(\d{2})-(\d{2})$', game_day)
     if mat is not None:
         # Refresh will erase history, so navigating back won't bring up the date prompt again
         xbmc.executebuiltin('Container.Refresh("plugin://plugin.video.mlbtv/?mode=101&game_day='+game_day+'&start_inning='+str(start_inning)+'")')
