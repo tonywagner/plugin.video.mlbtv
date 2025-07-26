@@ -1882,7 +1882,7 @@ class MLBMonitor(xbmc.Monitor):
                     third = game['linescore']['offense']['third']['id']
                 
                 basesit = self.basesit(first, second, third)
-                innbaseout = str(currentInning) + str(half) + str(basesit) + str(outs)
+                innbaseout = str(currentInning if currentInning <= 9 else 9) + str(half) + str(basesit) + str(outs)
                 
                 games.append({
                   'gamePk': game['gamePk'],
